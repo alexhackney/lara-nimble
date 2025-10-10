@@ -7,8 +7,8 @@ A comprehensive Laravel package for seamless integration with Nimble Streamer AP
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/alexhackney/lara-nimble.svg?style=flat-square)](https://packagist.org/packages/alexhackney/lara-nimble)
 [![Total Downloads](https://img.shields.io/packagist/dt/alexhackney/lara-nimble.svg?style=flat-square)](https://packagist.org/packages/alexhackney/lara-nimble)
 [![License](https://img.shields.io/packagist/l/alexhackney/lara-nimble.svg?style=flat-square)](https://packagist.org/packages/alexhackney/lara-nimble)
-[![PHP Version](https://img.shields.io/badge/php-8.2%2B-blue?style=flat-square)]()
-[![Laravel Version](https://img.shields.io/badge/laravel-11%2B-red?style=flat-square)]()
+[![PHP Version](https://img.shields.io/badge/php-8.1%2B-blue?style=flat-square)]()
+[![Laravel Version](https://img.shields.io/badge/laravel-10%20%7C%2011-red?style=flat-square)]()
 
 ## Features
 
@@ -29,8 +29,8 @@ A comprehensive Laravel package for seamless integration with Nimble Streamer AP
 
 ## Requirements
 
-- PHP 8.2 or higher
-- Laravel 11 or higher
+- PHP 8.1 or higher
+- Laravel 10 or 11
 - Nimble Streamer with API enabled
 - Composer
 
@@ -52,29 +52,39 @@ This will create a `config/nimble.php` file in your Laravel application.
 
 ### Step 3: Configure Environment Variables
 
-Add your Nimble server credentials to your `.env` file:
+**Minimal Configuration** - Add only what you need to your `.env` file:
 
 ```env
-# Nimble Server Connection
+# Required: Your Nimble server hostname
 NIMBLE_HOST=your-nimble-server.com
-NIMBLE_PORT=8082
-NIMBLE_PROTOCOL=https
 
-# Authentication (optional - if your Nimble server has management_token configured)
+# Optional: Only if your Nimble server requires authentication
 NIMBLE_TOKEN=your-secret-token
+```
 
-# Request Settings
-NIMBLE_TIMEOUT=30
-NIMBLE_CONNECT_TIMEOUT=10
-NIMBLE_RETRY_TIMES=3
-NIMBLE_RETRY_SLEEP=100
+That's it! The package uses sensible defaults for everything else.
 
-# Logging (optional)
-NIMBLE_LOG_REQUESTS=false
-NIMBLE_LOG_CHANNEL=stack
+**Optional Overrides** - Only add these if you need to change the defaults:
 
-# SSL Verification
-NIMBLE_VERIFY_SSL=true
+```env
+# Connection (defaults shown)
+NIMBLE_PORT=8082              # Default Nimble management port
+NIMBLE_PROTOCOL=http          # Use 'https' for production
+
+# Timeouts (in seconds)
+NIMBLE_TIMEOUT=30             # Request timeout
+NIMBLE_CONNECT_TIMEOUT=10     # Connection timeout
+
+# Retry Logic
+NIMBLE_RETRY_TIMES=3          # Number of retry attempts
+NIMBLE_RETRY_SLEEP=100        # Milliseconds between retries
+
+# Debug/Logging
+NIMBLE_LOG_REQUESTS=false     # Enable to log all requests
+NIMBLE_LOG_CHANNEL=stack      # Laravel log channel
+
+# SSL (for self-signed certs in development only)
+NIMBLE_VERIFY_SSL=true        # Set to false to disable SSL verification
 ```
 
 ### Step 4: Enable Nimble API
@@ -506,36 +516,41 @@ class PublishStreamJob implements ShouldQueue
 
 ## Configuration
 
-The `config/nimble.php` file provides extensive configuration options:
+The package is designed for **minimal configuration**. Only two settings are required in your `.env`:
+
+```env
+NIMBLE_HOST=your-server.com    # Required
+NIMBLE_TOKEN=your-token        # Optional, only if server requires auth
+```
+
+All other settings have sensible defaults that work for most use cases. The `config/nimble.php` file shows all available options with their defaults:
 
 ```php
 return [
-    // Server connection
-    'host' => env('NIMBLE_HOST', 'localhost'),
-    'port' => env('NIMBLE_PORT', 8082),
-    'protocol' => env('NIMBLE_PROTOCOL', 'http'),
+    // Connection (only NIMBLE_HOST is required)
+    'host' => env('NIMBLE_HOST', 'localhost'),          // Your Nimble server
+    'port' => env('NIMBLE_PORT', 8082),                 // Standard Nimble API port
+    'protocol' => env('NIMBLE_PROTOCOL', 'http'),       // http or https
 
-    // Authentication
-    'token' => env('NIMBLE_TOKEN'),
+    // Authentication (optional)
+    'token' => env('NIMBLE_TOKEN'),                     // Only if server requires it
 
-    // Request settings
-    'timeout' => env('NIMBLE_TIMEOUT', 30),
+    // Request settings (rarely need changing)
+    'timeout' => env('NIMBLE_TIMEOUT', 30),             // Seconds
     'connect_timeout' => env('NIMBLE_CONNECT_TIMEOUT', 10),
-    'retry_times' => env('NIMBLE_RETRY_TIMES', 3),
-    'retry_sleep' => env('NIMBLE_RETRY_SLEEP', 100),
+    'retry_times' => env('NIMBLE_RETRY_TIMES', 3),      // Auto-retry failed requests
+    'retry_sleep' => env('NIMBLE_RETRY_SLEEP', 100),    // Milliseconds
 
-    // Logging
+    // Logging (for debugging)
     'log_requests' => env('NIMBLE_LOG_REQUESTS', false),
     'log_channel' => env('NIMBLE_LOG_CHANNEL', 'stack'),
 
-    // Cache
-    'cache_enabled' => env('NIMBLE_CACHE_ENABLED', false),
-    'cache_ttl' => env('NIMBLE_CACHE_TTL', 60),
-
-    // SSL
+    // SSL (dev only - never disable in production)
     'verify_ssl' => env('NIMBLE_VERIFY_SSL', true),
 ];
 ```
+
+**You only need to override these in `.env` if the defaults don't work for your setup.**
 
 ## Testing
 
@@ -637,8 +652,8 @@ The MIT License (MIT). See [LICENSE](LICENSE) for details.
 **Developed by:** Alex Hackney
 
 **Built with:**
-- Laravel 11
-- PHP 8.2+
+- Laravel 10 & 11
+- PHP 8.1+
 - Nimble Streamer API
 
 ## Artisan Commands
