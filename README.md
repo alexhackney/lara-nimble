@@ -7,8 +7,8 @@ A comprehensive Laravel package for seamless integration with Nimble Streamer AP
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/alexhackney/lara-nimble.svg?style=flat-square)](https://packagist.org/packages/alexhackney/lara-nimble)
 [![Total Downloads](https://img.shields.io/packagist/dt/alexhackney/lara-nimble.svg?style=flat-square)](https://packagist.org/packages/alexhackney/lara-nimble)
 [![License](https://img.shields.io/packagist/l/alexhackney/lara-nimble.svg?style=flat-square)](https://packagist.org/packages/alexhackney/lara-nimble)
-[![PHP Version](https://img.shields.io/badge/php-8.1%2B-blue?style=flat-square)]()
-[![Laravel Version](https://img.shields.io/badge/laravel-10%20%7C%2011-red?style=flat-square)]()
+[![PHP Version](https://img.shields.io/badge/php-8.2%2B-blue?style=flat-square)]()
+[![Laravel Version](https://img.shields.io/badge/laravel-11%2B-red?style=flat-square)]()
 
 ## Features
 
@@ -29,8 +29,8 @@ A comprehensive Laravel package for seamless integration with Nimble Streamer AP
 
 ## Requirements
 
-- PHP 8.1 or higher
-- Laravel 10 or 11
+- PHP 8.2 or higher
+- Laravel 11 or higher
 - Nimble Streamer with API enabled
 - Composer
 
@@ -637,8 +637,8 @@ The MIT License (MIT). See [LICENSE](LICENSE) for details.
 **Developed by:** Alex Hackney
 
 **Built with:**
-- Laravel 10 & 11
-- PHP 8.1+
+- Laravel 11
+- PHP 8.2+
 - Nimble Streamer API
 
 ## Artisan Commands
