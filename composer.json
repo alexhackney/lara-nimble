@@ -1,0 +1,83 @@
+{
+    "name": "alexhackney/lara-nimble",
+    "description": "A comprehensive Laravel package for seamless integration with Nimble Streamer API. Manage streams, DVR, sessions, restreaming, and more with a clean, expressive Laravel interface.",
+    "keywords": [
+        "laravel",
+        "nimble",
+        "nimble-streamer",
+        "streaming",
+        "video-streaming",
+        "rtmp",
+        "mpeg-ts",
+        "srt",
+        "ndi",
+        "hls",
+        "video",
+        "api",
+        "dvr",
+        "restreaming",
+        "live-streaming"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/alexhackney/lara-nimble",
+    "authors": [
+        {
+            "name": "Alex Hackney",
+            "email": "alex@alexhackney.com",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/alexhackney/lara-nimble/issues",
+        "source": "https://github.com/alexhackney/lara-nimble",
+        "docs": "https://github.com/alexhackney/lara-nimble#readme"
+    },
+    "require": {
+        "php": "^8.2|^8.3",
+        "illuminate/support": "^11.0",
+        "illuminate/http": "^11.0",
+        "guzzlehttp/guzzle": "^7.5"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "phpunit/phpunit": "^10.5|^11.0",
+        "mockery/mockery": "^1.6",
+        "laravel/pint": "^1.13",
+        "phpstan/phpstan": "^1.10",
+        "larastan/larastan": "^2.9"
+    },
+    "autoload": {
+        "psr-4": {
+            "AlexHackney\\LaraNimble\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AlexHackney\\LaraNimble\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AlexHackney\\LaraNimble\\NimbleServiceProvider"
+            ],
+            "aliases": {
+                "Nimble": "AlexHackney\\LaraNimble\\Facades\\Nimble"
+            }
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage",
+        "format": "vendor/bin/pint",
+        "analyse": "vendor/bin/phpstan analyse"
+    },
+    "config": {
+        "sort-packages": true,
+        "preferred-install": "dist",
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
