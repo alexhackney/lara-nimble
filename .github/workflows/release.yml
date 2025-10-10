@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Run Tests Before Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run tests
+        run: vendor/bin/phpunit
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse
+
+      - name: Run Pint
+        run: vendor/bin/pint --test
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get tag name
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog for current version
+        id: changelog
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          # Extract changelog section for this version
+          if [ -f CHANGELOG.md ]; then
+            # Try to extract the section for this version
+            CHANGELOG=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | sed '$ d')
+            if [ -z "$CHANGELOG" ]; then
+              # If no specific version section, use the unreleased section
+              CHANGELOG=$(sed -n '/## \[Unreleased\]/,/## \[/p' CHANGELOG.md | sed '$ d')
+            fi
+            # Save to file for multiline support
+            echo "$CHANGELOG" > changelog_extract.md
+          else
+            echo "Release $VERSION" > changelog_extract.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.tag.outputs.version }}
+          body_path: changelog_extract.md
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.version, '-') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Packagist
+        run: |
+          # Packagist auto-updates from GitHub tags, but we can trigger it manually for faster updates
+          if [ -n "${{ secrets.PACKAGIST_TOKEN }}" ]; then
+            curl -XPOST -H "Content-Type: application/json" \
+              "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
+              -d '{"repository":{"url":"https://github.com/alexhackney/lara-nimble"}}'
+          fi

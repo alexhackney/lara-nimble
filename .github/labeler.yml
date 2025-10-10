@@ -1,0 +1,53 @@
+# Label configuration for pull requests
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
+      - '.claude/**/*'
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tests/**/*'
+      - 'phpunit.xml'
+
+config:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'config/**/*'
+      - 'phpstan.neon'
+      - 'pint.json'
+      - 'composer.json'
+
+ci/cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**/*'
+
+services:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/Services/**/*'
+
+client:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/Client/**/*'
+
+dtos:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/DTOs/**/*'
+
+enums:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/Enums/**/*'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'composer.json'
+      - 'composer.lock'
