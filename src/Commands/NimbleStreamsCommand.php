@@ -13,12 +13,12 @@ class NimbleStreamsCommand extends Command
      * The name and signature of the console command.
      */
     protected $signature = 'nimble:streams
-                            {--filter= : Filter streams by status (active/inactive)}';
+                            {--app= : Only show streams of this application}';
 
     /**
      * The console command description.
      */
-    protected $description = 'List all Nimble streams';
+    protected $description = 'List currently live Nimble streams';
 
     /**
      * Execute the console command.
@@ -26,47 +26,40 @@ class NimbleStreamsCommand extends Command
     public function handle(): int
     {
         try {
-            $this->info('Fetching streams from Nimble server...');
+            $this->info('Fetching live streams from Nimble server...');
             $this->newLine();
 
-            $streams = Nimble::streams()->list();
+            $appOption = $this->option('app');
+            $app = is_string($appOption) && $appOption !== '' ? $appOption : null;
 
-            // Apply filter if provided
-            $filterOption = $this->option('filter');
-            $filter = is_string($filterOption) ? $filterOption : null;
-            if ($filter) {
-                $streams = $streams->filter(function ($stream) use ($filter) {
-                    return strtolower($stream->status->value) === strtolower($filter);
-                });
-            }
+            $streams = $app !== null
+                ? Nimble::streams()->byApp($app)
+                : Nimble::streams()->list();
 
             if ($streams->isEmpty()) {
-                $this->warn('No streams found.');
+                $this->warn('No live streams found.');
 
                 return self::SUCCESS;
             }
 
-            // Prepare table data
             $rows = $streams->map(function ($stream) {
-                $statusColor = $stream->status->value === 'active' ? 'green' : 'red';
-
                 return [
-                    $stream->id,
-                    $stream->name,
-                    "<fg={$statusColor}>{$stream->status->value}</>",
-                    $stream->protocol->value,
-                    $stream->viewers ?? 'N/A',
-                    $stream->bitrate ? "{$stream->bitrate} kbps" : 'N/A',
+                    $stream->app,
+                    $stream->stream,
+                    $stream->protocol ?? 'N/A',
+                    $stream->resolution ?? 'N/A',
+                    $stream->bandwidth !== null ? number_format($stream->bandwidth) : 'N/A',
+                    $stream->publisherIp ?? 'N/A',
                 ];
             })->toArray();
 
             $this->table(
-                ['ID', 'Name', 'Status', 'Protocol', 'Viewers', 'Bitrate'],
+                ['App', 'Stream', 'Protocol', 'Resolution', 'Bandwidth', 'Publisher'],
                 $rows
             );
 
             $this->newLine();
-            $this->info("Total: {$streams->count()} stream(s)");
+            $this->info("Total: {$streams->count()} live stream(s)");
 
             return self::SUCCESS;
         } catch (\Exception $e) {

@@ -288,4 +288,129 @@ class RestreamServiceTest extends TestCase
         $this->assertSame('GET', $request->getMethod());
         $this->assertSame('/manage/rtmp/republish/stats', $request->getUri()->getPath());
     }
+
+    private function desiredRule(array $overrides = []): RestreamDto
+    {
+        $data = array_merge($this->sampleRule(), $overrides);
+        unset($data['id']);
+
+        return RestreamDto::fromArray($data);
+    }
+
+    #[Test]
+    public function sync_creates_missing_rules(): void
+    {
+        $mock = new MockHandler([
+            // list(): nothing on the server
+            new Response(200, [], json_encode(['status' => 'Ok', 'rules' => []])),
+            // create()
+            new Response(200, [], json_encode(['status' => 'Ok', 'rule' => $this->sampleRule(['id' => 1])])),
+        ]);
+
+        $service = $this->createService($mock);
+        $result = $service->sync([$this->desiredRule()]);
+
+        $this->assertCount(1, $result->created);
+        $this->assertCount(0, $result->deleted);
+        $this->assertCount(0, $result->kept);
+        $this->assertTrue($result->changed());
+        $this->assertSame(1, $result->created->first()->id);
+    }
+
+    #[Test]
+    public function sync_deletes_rules_that_are_no_longer_desired(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok', 'rules' => [$this->sampleRule(['id' => 5])]])),
+            new Response(200, [], json_encode(['status' => 'Ok'])),
+        ]);
+
+        $service = $this->createService($mock);
+        $result = $service->sync([]);
+
+        $this->assertCount(0, $result->created);
+        $this->assertCount(1, $result->deleted);
+        $this->assertSame(5, $result->deleted->first()->id);
+
+        $request = $this->lastRequest();
+        $this->assertSame('DELETE', $request->getMethod());
+        $this->assertSame('/manage/rtmp/republish/5', $request->getUri()->getPath());
+    }
+
+    #[Test]
+    public function sync_keeps_matching_rules_untouched(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok', 'rules' => [$this->sampleRule(['id' => 5])]])),
+        ]);
+
+        $service = $this->createService($mock);
+        $result = $service->sync([$this->desiredRule()]);
+
+        $this->assertCount(0, $result->created);
+        $this->assertCount(0, $result->deleted);
+        $this->assertCount(1, $result->kept);
+        $this->assertFalse($result->changed());
+        // Only the list() call happened
+        $this->assertCount(1, $this->history);
+    }
+
+    #[Test]
+    public function sync_converges_a_mixed_state(): void
+    {
+        $keep = $this->sampleRule(['id' => 1]);
+        $stale = $this->sampleRule(['id' => 2, 'dest_stream' => 'old-key']);
+
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok', 'rules' => [$keep, $stale]])),
+            // create for the new rule
+            new Response(200, [], json_encode(['status' => 'Ok', 'rule' => $this->sampleRule(['id' => 3, 'dest_stream' => 'new-key'])])),
+            // delete for the stale rule
+            new Response(200, [], json_encode(['status' => 'Ok'])),
+        ]);
+
+        $service = $this->createService($mock);
+        $result = $service->sync([
+            $this->desiredRule(),
+            $this->desiredRule(['dest_stream' => 'new-key']),
+        ]);
+
+        $this->assertSame([3], $result->created->map(fn (RestreamDto $r) => $r->id)->all());
+        $this->assertSame([2], $result->deleted->map(fn (RestreamDto $r) => $r->id)->all());
+        $this->assertSame([1], $result->kept->map(fn (RestreamDto $r) => $r->id)->all());
+    }
+
+    #[Test]
+    public function sync_deletes_duplicate_rules_for_the_same_target(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode([
+                'status' => 'Ok',
+                'rules' => [$this->sampleRule(['id' => 1]), $this->sampleRule(['id' => 2])],
+            ])),
+            new Response(200, [], json_encode(['status' => 'Ok'])),
+        ]);
+
+        $service = $this->createService($mock);
+        $result = $service->sync([$this->desiredRule()]);
+
+        $this->assertSame([1], $result->kept->map(fn (RestreamDto $r) => $r->id)->all());
+        $this->assertSame([2], $result->deleted->map(fn (RestreamDto $r) => $r->id)->all());
+    }
+
+    #[Test]
+    public function sync_deduplicates_the_desired_set(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok', 'rules' => []])),
+            new Response(200, [], json_encode(['status' => 'Ok', 'rule' => $this->sampleRule(['id' => 1])])),
+        ]);
+
+        $service = $this->createService($mock);
+        $result = $service->sync([$this->desiredRule(), $this->desiredRule()]);
+
+        $this->assertCount(1, $result->created);
+        // list + one create only
+        $this->assertCount(2, $this->history);
+    }
 }

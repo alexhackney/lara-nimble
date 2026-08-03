@@ -63,21 +63,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Cache
+    | Response Caching
     |--------------------------------------------------------------------------
     |
-    | Configure response caching to reduce API calls. This is useful for
-    | frequently accessed, rarely changing data like server status.
+    | When enabled, frequently polled read endpoints (live stream status,
+    | server status) are cached for a short TTL so dashboards refreshing
+    | every second do not hammer the Nimble API. Disabled by default;
+    | note that StreamService::exists()/find() also serve cached data
+    | while enabled. 'store' of null uses your default cache store.
     |
     */
 
-    'cache_enabled' => env('NIMBLE_CACHE_ENABLED', false),
-
-    'cache_driver' => env('NIMBLE_CACHE_DRIVER', 'file'),
-
-    'cache_ttl' => env('NIMBLE_CACHE_TTL', 60), // seconds
-
-    'cache_prefix' => env('NIMBLE_CACHE_PREFIX', 'nimble'),
+    'cache' => [
+        'enabled' => env('NIMBLE_CACHE_ENABLED', false),
+        'ttl' => env('NIMBLE_CACHE_TTL', 2), // seconds
+        'store' => env('NIMBLE_CACHE_STORE'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

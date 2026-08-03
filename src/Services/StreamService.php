@@ -6,146 +6,76 @@ namespace AlexHackney\LaraNimble\Services;
 
 use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\DTOs\StreamDto;
-use AlexHackney\LaraNimble\DTOs\StreamStatsDto;
-use AlexHackney\LaraNimble\Events\StreamPublished;
-use AlexHackney\LaraNimble\Events\StreamUnpublished;
+use AlexHackney\LaraNimble\Support\RemembersResponses;
 use Illuminate\Support\Collection;
 
 /**
- * Service for managing Nimble streams.
+ * Service for inspecting live streams via GET /manage/live_streams_status.
+ *
+ * Nimble's native API exposes currently-running streams only; a stream
+ * that is not being published simply does not appear.
  */
 class StreamService
 {
+    use RemembersResponses;
+
     public function __construct(
         private readonly NimbleClient $client
     ) {}
 
     /**
-     * List all streams.
+     * List all currently live streams across all applications.
+     *
+     * Served from a short-TTL cache when nimble.cache.enabled is on.
      *
      * @return Collection<int, StreamDto>
      */
     public function list(): Collection
     {
-        $response = $this->client->get('/manage/streams');
-
-        /** @var array<int, array<string, mixed>> $streams */
-        $streams = $response->get('streams', []);
-
-        return collect($streams)->map(function (array $streamData) {
-            return StreamDto::fromArray($streamData);
+        /** @var array<int, array<string, mixed>> $groups */
+        $groups = $this->remember('live_streams_status', function (): array {
+            return $this->client->get('/manage/live_streams_status')->data();
         });
+
+        return collect($groups)->flatMap(function (array $group) {
+            $app = $group['app'] ?? '';
+
+            /** @var array<int, array<string, mixed>> $streams */
+            $streams = $group['streams'] ?? [];
+
+            return collect($streams)->map(function (array $stream) use ($app) {
+                return StreamDto::fromArray(['app' => $app] + $stream);
+            });
+        })->values();
     }
 
     /**
-     * Get details of a specific stream.
-     */
-    public function get(string $streamId): StreamDto
-    {
-        $response = $this->client->get("/manage/stream/{$streamId}");
-
-        return StreamDto::fromArray($response->data());
-    }
-
-    /**
-     * Publish a stream.
-     */
-    public function publish(string $app, string $stream): bool
-    {
-        $response = $this->client->post('/manage/publish', [
-            'app' => $app,
-            'stream' => $stream,
-            'action' => 'publish',
-        ]);
-
-        $success = $response->get('success', false) === true;
-
-        if ($success) {
-            try {
-                event(new StreamPublished($app, $stream));
-            } catch (\Throwable $e) {
-                // Event dispatcher not available (e.g., in unit tests)
-            }
-        }
-
-        return $success;
-    }
-
-    /**
-     * Unpublish a stream.
-     */
-    public function unpublish(string $app, string $stream): bool
-    {
-        $response = $this->client->post('/manage/publish', [
-            'app' => $app,
-            'stream' => $stream,
-            'action' => 'unpublish',
-        ]);
-
-        $success = $response->get('success', false) === true;
-
-        if ($success) {
-            try {
-                event(new StreamUnpublished($app, $stream));
-            } catch (\Throwable $e) {
-                // Event dispatcher not available (e.g., in unit tests)
-            }
-        }
-
-        return $success;
-    }
-
-    /**
-     * Get stream statistics.
-     */
-    public function statistics(string $streamId): array
-    {
-        $response = $this->client->get("/manage/stream/{$streamId}/stats");
-
-        return $response->data();
-    }
-
-    /**
-     * Get real-time statistics for a specific live stream.
+     * List currently live streams for one application.
      *
-     * Returns detailed information including bandwidth, resolution, codecs,
-     * protocol, publisher info, and more for an active stream.
-     *
-     * @param  string  $streamName  The stream name/key
-     * @return StreamStatsDto|null Returns null if stream is not currently live
+     * @return Collection<int, StreamDto>
      */
-    public function liveStatus(string $streamName): ?StreamStatsDto
+    public function byApp(string $app): Collection
     {
-        $response = $this->client->get('/manage/live_streams_status');
-
-        $streams = $response->get('streams', []);
-
-        foreach ($streams as $streamData) {
-            if (($streamData['stream_name'] ?? $streamData['name'] ?? null) === $streamName) {
-                return StreamStatsDto::fromArray($streamData);
-            }
-        }
-
-        return null;
+        return $this->list()
+            ->filter(fn (StreamDto $stream) => $stream->app === $app)
+            ->values();
     }
 
     /**
-     * Get real-time statistics for all currently active streams.
-     *
-     * Returns a collection of StreamStatsDto objects containing detailed
-     * information for all streams that are currently publishing.
-     *
-     * @return Collection<int, StreamStatsDto>
+     * Find a live stream, or null when it is not currently publishing.
      */
-    public function allLiveStreams(): Collection
+    public function find(string $app, string $stream): ?StreamDto
     {
-        $response = $this->client->get('/manage/live_streams_status');
+        return $this->list()->first(
+            fn (StreamDto $dto) => $dto->app === $app && $dto->stream === $stream
+        );
+    }
 
-        /** @var array<int, array<string, mixed>> $streams */
-        $streams = $response->get('streams', []);
-
-        return collect($streams)->map(function (array $streamData) {
-            return StreamStatsDto::fromArray($streamData);
-        });
+    /**
+     * Check whether a stream is currently live.
+     */
+    public function exists(string $app, string $stream): bool
+    {
+        return $this->find($app, $stream) !== null;
     }
 }

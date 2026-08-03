@@ -16,6 +16,6 @@ class SessionTerminated
      * Create a new event instance.
      */
     public function __construct(
-        public readonly string $sessionId,
+        public readonly int $sessionId,
     ) {}
 }

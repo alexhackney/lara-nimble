@@ -8,7 +8,10 @@ use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\Events\CacheCleared;
 
 /**
- * Service for managing Nimble server cache.
+ * Service for Nimble's data cache (/manage/data_cache).
+ *
+ * The data cache holds responses for remote VOD and similar content,
+ * addressed by cache keys derived from origin URLs.
  */
 class CacheService
 {
@@ -17,49 +20,44 @@ class CacheService
     ) {}
 
     /**
-     * Clear server cache.
-     *
-     * @param  string|null  $type  Cache type to clear (all, hls, dash)
+     * Resolve the cache key for an origin URL, or null when Nimble
+     * does not return one.
      */
-    public function clear(?string $type = null): bool
+    public function key(string $url): ?string
     {
-        $params = [];
-        if ($type !== null) {
-            $params['type'] = $type;
-        }
+        $response = $this->client->post('/manage/data_cache/get_key', ['url' => $url]);
 
-        $response = $this->client->post('/manage/cache/clear', $params);
+        $key = $response->get('key');
 
-        $success = $response->get('success', false) === true;
+        return is_string($key) ? $key : null;
+    }
 
-        if ($success) {
+    /**
+     * Delete cached items by key and return the removed item list.
+     *
+     * A missing key yields an empty list. With dryRun, Nimble reports
+     * what would be removed without removing it.
+     *
+     * @return array<int, string>
+     */
+    public function delete(string $key, bool $dryRun = false): array
+    {
+        $response = $this->client->post('/manage/data_cache/delete', [
+            'key' => $key,
+            'dry_run' => $dryRun,
+        ]);
+
+        /** @var array<int, string> $removed */
+        $removed = $response->get('removed_items', []);
+
+        if ($removed !== [] && ! $dryRun) {
             try {
-                event(new CacheCleared($type));
-            } catch (\Throwable $e) {
+                event(new CacheCleared($key));
+            } catch (\Throwable) {
                 // Event dispatcher not available (e.g., in unit tests)
             }
         }
 
-        return $success;
-    }
-
-    /**
-     * Get cache statistics.
-     */
-    public function statistics(): array
-    {
-        $response = $this->client->get('/manage/cache/stats');
-
-        return $response->data();
-    }
-
-    /**
-     * Configure cache settings.
-     */
-    public function configure(array $settings): bool
-    {
-        $response = $this->client->post('/manage/cache/configure', $settings);
-
-        return $response->get('success', false) === true;
+        return $removed;
     }
 }

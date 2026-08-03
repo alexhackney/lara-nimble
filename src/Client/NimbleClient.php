@@ -12,10 +12,7 @@ use AlexHackney\LaraNimble\Exceptions\NimbleTimeoutException;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Middleware;
 use Illuminate\Support\Facades\Log;
-use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -81,9 +78,15 @@ class NimbleClient
      * @throws NimbleApiException
      * @throws NimbleTimeoutException
      */
-    public function post(string $endpoint, array $data = []): Response
+    public function post(string $endpoint, array $data = [], array $query = []): Response
     {
-        return $this->request('POST', $endpoint, ['json' => $data]);
+        $options = ['json' => $data];
+
+        if ($query !== []) {
+            $options['query'] = $query;
+        }
+
+        return $this->request('POST', $endpoint, $options);
     }
 
     /**
@@ -110,6 +113,29 @@ class NimbleClient
     public function delete(string $endpoint, array $params = []): Response
     {
         return $this->request('DELETE', $endpoint, ['query' => $params]);
+    }
+
+    /**
+     * Send a GET request for a large payload (e.g. DVR MP4 export).
+     *
+     * With a sink path, the body streams straight to that file instead of
+     * into memory. Downloads default to no timeout since archive exports
+     * can far exceed the configured request timeout; pass one to override.
+     *
+     * @throws NimbleConnectionException
+     * @throws NimbleAuthenticationException
+     * @throws NimbleApiException
+     * @throws NimbleTimeoutException
+     */
+    public function download(string $endpoint, array $params = [], ?string $sink = null, ?int $timeout = null): Response
+    {
+        $options = ['query' => $params, 'timeout' => $timeout ?? 0];
+
+        if ($sink !== null) {
+            $options['sink'] = $sink;
+        }
+
+        return $this->request('GET', $endpoint, $options);
     }
 
     /**
@@ -331,39 +357,13 @@ class NimbleClient
 
     /**
      * Create the Guzzle HTTP client
+     *
+     * Retries are handled exclusively by the loop in request(); adding
+     * Guzzle retry middleware here would multiply the attempt count.
      */
     private function createGuzzleClient(array $config): GuzzleClient
     {
-        $handlerStack = HandlerStack::create();
-
-        // Add retry middleware for transient failures
-        $handlerStack->push(Middleware::retry(
-            function ($retries, RequestInterface $request, ?ResponseInterface $response = null, ?\Exception $exception = null) {
-                // Don't retry more than configured times
-                if ($retries >= $this->retryTimes) {
-                    return false;
-                }
-
-                // Retry on connection errors
-                if ($exception instanceof ConnectException) {
-                    return true;
-                }
-
-                // Don't retry on successful responses
-                if ($response && $response->getStatusCode() < 500) {
-                    return false;
-                }
-
-                // Retry on server errors
-                return $response && $response->getStatusCode() >= 500;
-            },
-            function ($retries) {
-                return $this->retrySleep * (2 ** $retries);
-            }
-        ));
-
         return new GuzzleClient([
-            'handler' => $handlerStack,
             'timeout' => $config['timeout'] ?? 30,
             'connect_timeout' => $config['connect_timeout'] ?? 10,
             'verify' => $config['verify_ssl'] ?? true,
@@ -409,5 +409,22 @@ class NimbleClient
     public function getBaseUrl(): string
     {
         return $this->baseUrl;
+    }
+
+    /**
+     * Build a full, ready-to-request URL for an endpoint, including
+     * authentication parameters when a management token is configured.
+     *
+     * Useful for endpoints whose response should be consumed directly by
+     * the client application, such as DVR MP4 export.
+     */
+    public function url(string $endpoint, array $params = []): string
+    {
+        $options = $this->addAuthentication($params === [] ? [] : ['query' => $params]);
+        $query = $options['query'] ?? [];
+
+        $url = $this->buildUrl($endpoint);
+
+        return $query === [] ? $url : $url.'?'.http_build_query($query);
     }
 }

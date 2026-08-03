@@ -16,6 +16,6 @@ class CacheCleared
      * Create a new event instance.
      */
     public function __construct(
-        public readonly ?string $type = null,
+        public readonly ?string $key = null,
     ) {}
 }
