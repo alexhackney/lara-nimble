@@ -6,301 +6,139 @@ namespace AlexHackney\LaraNimble\Tests\Unit\Services;
 
 use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\DTOs\StreamDto;
-use AlexHackney\LaraNimble\DTOs\StreamStatsDto;
 use AlexHackney\LaraNimble\Services\StreamService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 
 class StreamServiceTest extends TestCase
 {
+    /** @var array<int, array{request: RequestInterface}> */
+    private array $history = [];
+
     private function createService(MockHandler $mockHandler): StreamService
     {
+        $this->history = [];
+
         $handlerStack = HandlerStack::create($mockHandler);
+        $handlerStack->push(Middleware::history($this->history));
         $httpClient = new Client(['handler' => $handlerStack]);
 
-        $config = [
+        $nimbleClient = new NimbleClient([
             'host' => 'localhost',
             'port' => 8082,
             'protocol' => 'http',
-        ];
-
-        $nimbleClient = new NimbleClient($config, $httpClient);
+        ], $httpClient);
 
         return new StreamService($nimbleClient);
     }
 
-    #[Test]
-    public function it_can_list_streams(): void
+    private function liveStreamsResponse(): Response
     {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
+        return new Response(200, [], json_encode([
+            [
+                'app' => 'live',
                 'streams' => [
                     [
-                        'id' => 'stream-1',
-                        'name' => 'live-stream',
-                        'status' => 'active',
-                        'protocol' => 'rtmp',
-                    ],
-                    [
-                        'id' => 'stream-2',
-                        'name' => 'test-stream',
-                        'status' => 'inactive',
-                        'protocol' => 'srt',
-                    ],
-                ],
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $streams = $service->list();
-
-        $this->assertInstanceOf(Collection::class, $streams);
-        $this->assertCount(2, $streams);
-        $this->assertContainsOnlyInstancesOf(StreamDto::class, $streams);
-        $this->assertEquals('stream-1', $streams->first()->id);
-        $this->assertEquals('live-stream', $streams->first()->name);
-    }
-
-    #[Test]
-    public function it_can_get_a_specific_stream(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'id' => 'stream-123',
-                'name' => 'my-stream',
-                'status' => 'active',
-                'protocol' => 'rtmp',
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $stream = $service->get('stream-123');
-
-        $this->assertInstanceOf(StreamDto::class, $stream);
-        $this->assertEquals('stream-123', $stream->id);
-        $this->assertEquals('my-stream', $stream->name);
-        $this->assertEquals('active', $stream->status->value);
-    }
-
-    #[Test]
-    public function it_can_publish_a_stream(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'success' => true,
-                'stream_id' => 'stream-123',
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $result = $service->publish('live', 'stream1');
-
-        $this->assertTrue($result);
-    }
-
-    #[Test]
-    public function it_can_unpublish_a_stream(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'success' => true,
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $result = $service->unpublish('live', 'stream1');
-
-        $this->assertTrue($result);
-    }
-
-    #[Test]
-    public function it_returns_false_when_publish_fails(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'success' => false,
-                'error' => 'Stream already publishing',
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $result = $service->publish('live', 'stream1');
-
-        $this->assertFalse($result);
-    }
-
-    #[Test]
-    public function it_can_get_stream_statistics(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'stream_id' => 'stream-123',
-                'bitrate' => 2500,
-                'viewers' => 42,
-                'duration' => 3600,
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $stats = $service->statistics('stream-123');
-
-        $this->assertIsArray($stats);
-        $this->assertEquals('stream-123', $stats['stream_id']);
-        $this->assertEquals(2500, $stats['bitrate']);
-        $this->assertEquals(42, $stats['viewers']);
-    }
-
-    #[Test]
-    public function it_returns_empty_collection_when_no_streams(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'streams' => [],
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $streams = $service->list();
-
-        $this->assertInstanceOf(Collection::class, $streams);
-        $this->assertCount(0, $streams);
-    }
-
-    #[Test]
-    public function it_can_get_live_status_for_specific_stream(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'streams' => [
-                    [
-                        'stream_name' => 'my-live-stream',
-                        'application' => 'live',
-                        'bandwidth' => 5000000,
-                        'resolution' => '1920x1080',
-                        'vcodec' => 'h264',
-                        'acodec' => 'aac',
-                        'protocol' => 'rtmp',
-                        'source_url' => 'rtmp://source.com/live/stream',
-                        'publisher_ip' => '192.168.1.100',
-                        'publisher_port' => 1935,
-                        'viewers' => 42,
-                        'fps' => 30.0,
-                        'bitrate' => 2500,
-                        'duration' => 3600,
-                        'start_time' => '2024-01-01 12:00:00',
-                    ],
-                    [
-                        'stream_name' => 'another-stream',
-                        'protocol' => 'srt',
-                    ],
-                ],
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $stats = $service->liveStatus('my-live-stream');
-
-        $this->assertInstanceOf(StreamStatsDto::class, $stats);
-        $this->assertEquals('my-live-stream', $stats->streamName);
-        $this->assertEquals('live', $stats->application);
-        $this->assertEquals(5000000, $stats->bandwidth);
-        $this->assertEquals('1920x1080', $stats->resolution);
-        $this->assertEquals('h264', $stats->videoCodec);
-        $this->assertEquals('aac', $stats->audioCodec);
-        $this->assertEquals('rtmp', $stats->protocol);
-        $this->assertEquals('192.168.1.100', $stats->publisherIp);
-        $this->assertEquals(1935, $stats->publisherPort);
-        $this->assertEquals(42, $stats->viewers);
-        $this->assertEquals(30.0, $stats->fps);
-    }
-
-    #[Test]
-    public function it_returns_null_when_stream_is_not_live(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'streams' => [
-                    [
-                        'stream_name' => 'another-stream',
-                        'protocol' => 'srt',
-                    ],
-                ],
-            ])),
-        ]);
-
-        $service = $this->createService($mock);
-        $stats = $service->liveStatus('non-existent-stream');
-
-        $this->assertNull($stats);
-    }
-
-    #[Test]
-    public function it_can_get_all_live_streams(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'streams' => [
-                    [
-                        'stream_name' => 'stream-1',
-                        'application' => 'live',
-                        'protocol' => 'rtmp',
-                        'bandwidth' => 5000000,
-                        'resolution' => '1920x1080',
-                        'vcodec' => 'h264',
-                        'acodec' => 'aac',
-                    ],
-                    [
-                        'stream_name' => 'stream-2',
-                        'application' => 'live',
-                        'protocol' => 'srt',
-                        'bandwidth' => 3000000,
+                        'strm' => 'stream1',
+                        'bandwidth' => 1697348,
                         'resolution' => '1280x720',
-                        'vcodec' => 'h264',
-                        'acodec' => 'aac',
+                        'vcodec' => 'avc1.42c01f',
+                        'acodec' => 'mp4a.40.2',
+                        'protocol' => 'RTMP',
+                        'publisher_ip' => '192.168.0.95',
+                        'publisher_port' => 60349,
+                        'publish_time' => '1524060893',
                     ],
-                    [
-                        'stream_name' => 'stream-3',
-                        'application' => 'test',
-                        'protocol' => 'ndi',
-                        'bandwidth' => 10000000,
-                        'resolution' => '3840x2160',
-                    ],
+                    ['strm' => 'stream2', 'bandwidth' => 900000],
                 ],
-            ])),
-        ]);
+            ],
+            [
+                'app' => 'events',
+                'streams' => [
+                    ['strm' => 'concert', 'bandwidth' => 2500000],
+                ],
+            ],
+        ]));
+    }
 
-        $service = $this->createService($mock);
-        $streams = $service->allLiveStreams();
+    #[Test]
+    public function it_lists_live_streams_across_all_applications(): void
+    {
+        $service = $this->createService(new MockHandler([$this->liveStreamsResponse()]));
+        $streams = $service->list();
 
         $this->assertInstanceOf(Collection::class, $streams);
         $this->assertCount(3, $streams);
-        $this->assertContainsOnlyInstancesOf(StreamStatsDto::class, $streams);
-        $this->assertEquals('stream-1', $streams->first()->streamName);
-        $this->assertEquals('rtmp', $streams->first()->protocol);
-        $this->assertEquals('stream-2', $streams->get(1)->streamName);
-        $this->assertEquals('srt', $streams->get(1)->protocol);
-        $this->assertEquals('stream-3', $streams->get(2)->streamName);
-        $this->assertEquals('ndi', $streams->get(2)->protocol);
+        $this->assertContainsOnlyInstancesOf(StreamDto::class, $streams);
+
+        $first = $streams->first();
+        $this->assertSame('live', $first->app);
+        $this->assertSame('stream1', $first->stream);
+        $this->assertSame(1697348, $first->bandwidth);
+        $this->assertSame('1280x720', $first->resolution);
+        $this->assertSame(1524060893, $first->publishTime);
+
+        $this->assertSame('events', $streams->last()->app);
+
+        $request = $this->history[0]['request'];
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/manage/live_streams_status', $request->getUri()->getPath());
     }
 
     #[Test]
-    public function it_returns_empty_collection_when_no_live_streams(): void
+    public function it_returns_an_empty_collection_when_nothing_is_live(): void
     {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'streams' => [],
-            ])),
-        ]);
+        $service = $this->createService(new MockHandler([
+            new Response(200, [], json_encode([])),
+        ]));
 
-        $service = $this->createService($mock);
-        $streams = $service->allLiveStreams();
+        $this->assertTrue($service->list()->isEmpty());
+    }
 
-        $this->assertInstanceOf(Collection::class, $streams);
-        $this->assertCount(0, $streams);
+    #[Test]
+    public function it_filters_streams_by_application(): void
+    {
+        $service = $this->createService(new MockHandler([$this->liveStreamsResponse()]));
+        $streams = $service->byApp('live');
+
+        $this->assertCount(2, $streams);
+        $this->assertSame(['stream1', 'stream2'], $streams->map(fn (StreamDto $s) => $s->stream)->all());
+    }
+
+    #[Test]
+    public function it_finds_a_live_stream(): void
+    {
+        $service = $this->createService(new MockHandler([$this->liveStreamsResponse()]));
+        $stream = $service->find('events', 'concert');
+
+        $this->assertInstanceOf(StreamDto::class, $stream);
+        $this->assertSame(2500000, $stream->bandwidth);
+    }
+
+    #[Test]
+    public function it_returns_null_for_a_stream_that_is_not_live(): void
+    {
+        $service = $this->createService(new MockHandler([$this->liveStreamsResponse()]));
+
+        $this->assertNull($service->find('live', 'offline-stream'));
+    }
+
+    #[Test]
+    public function it_checks_stream_existence(): void
+    {
+        $service = $this->createService(new MockHandler([
+            $this->liveStreamsResponse(),
+            $this->liveStreamsResponse(),
+        ]));
+
+        $this->assertTrue($service->exists('live', 'stream1'));
+        $this->assertFalse($service->exists('live', 'nope'));
     }
 }

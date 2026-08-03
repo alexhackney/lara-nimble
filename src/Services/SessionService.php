@@ -10,7 +10,7 @@ use AlexHackney\LaraNimble\Events\SessionTerminated;
 use Illuminate\Support\Collection;
 
 /**
- * Service for managing Nimble sessions.
+ * Service for managing Nimble client sessions.
  */
 class SessionService
 {
@@ -28,7 +28,7 @@ class SessionService
         $response = $this->client->get('/manage/sessions');
 
         /** @var array<int, array<string, mixed>> $sessions */
-        $sessions = $response->get('sessions', []);
+        $sessions = $response->data();
 
         return collect($sessions)->map(function (array $sessionData) {
             return SessionDto::fromArray($sessionData);
@@ -36,42 +36,42 @@ class SessionService
     }
 
     /**
-     * Get details of a specific session.
+     * Find a session by id, or null when it does not exist.
      */
-    public function get(string $sessionId): SessionDto
+    public function find(int $sessionId): ?SessionDto
     {
-        $response = $this->client->get("/manage/session/{$sessionId}");
-
-        return SessionDto::fromArray($response->data());
+        return $this->list()->first(
+            fn (SessionDto $session) => $session->id === $sessionId
+        );
     }
 
     /**
-     * Terminate a specific session.
+     * Terminate one or more sessions by id.
+     *
+     * @param  int|array<int, int>  $sessionIds
      */
-    public function terminate(string $sessionId): bool
+    public function terminate(int|array $sessionIds): bool
     {
-        $response = $this->client->delete("/manage/session/{$sessionId}");
+        $ids = array_values(array_map(intval(...), (array) $sessionIds));
 
-        $success = $response->get('success', false) === true;
+        if ($ids === []) {
+            return false;
+        }
+
+        $response = $this->client->post('/manage/sessions/delete', $ids);
+
+        $success = strcasecmp((string) $response->get('status', ''), 'ok') === 0;
 
         if ($success) {
-            try {
-                event(new SessionTerminated($sessionId));
-            } catch (\Throwable $e) {
-                // Event dispatcher not available (e.g., in unit tests)
+            foreach ($ids as $id) {
+                try {
+                    event(new SessionTerminated($id));
+                } catch (\Throwable) {
+                    // Event dispatcher not available (e.g., in unit tests)
+                }
             }
         }
 
         return $success;
-    }
-
-    /**
-     * Get session statistics.
-     */
-    public function statistics(string $sessionId): array
-    {
-        $response = $this->client->get("/manage/session/{$sessionId}/stats");
-
-        return $response->data();
     }
 }

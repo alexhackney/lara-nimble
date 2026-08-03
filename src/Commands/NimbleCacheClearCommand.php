@@ -13,12 +13,13 @@ class NimbleCacheClearCommand extends Command
      * The name and signature of the console command.
      */
     protected $signature = 'nimble:cache:clear
-                            {--type= : Cache type to clear (all, hls, dash)}';
+                            {key : The data cache key to remove (see data_cache/get_key)}
+                            {--dry-run : Report what would be removed without removing it}';
 
     /**
      * The console command description.
      */
-    protected $description = 'Clear Nimble server cache';
+    protected $description = 'Remove items from the Nimble data cache';
 
     /**
      * Execute the console command.
@@ -26,27 +27,37 @@ class NimbleCacheClearCommand extends Command
     public function handle(): int
     {
         try {
-            $typeOption = $this->option('type');
-            $type = is_string($typeOption) ? $typeOption : null;
+            $keyArgument = $this->argument('key');
+            $key = is_string($keyArgument) ? $keyArgument : '';
+            $dryRun = (bool) $this->option('dry-run');
 
-            $message = $type
-                ? "Clearing {$type} cache..."
-                : 'Clearing all caches...';
+            if ($key === '') {
+                $this->error('A cache key is required.');
 
-            $this->info($message);
+                return self::FAILURE;
+            }
 
-            $result = Nimble::cache()->clear($type);
+            $this->info($dryRun ? "Checking cache items for key: {$key}" : "Removing cache items for key: {$key}");
 
-            if ($result) {
-                $this->newLine();
-                $this->info('✓ Cache cleared successfully');
+            $removed = Nimble::cache()->delete($key, $dryRun);
+
+            if ($removed === []) {
+                $this->warn('No cached items matched the given key.');
 
                 return self::SUCCESS;
             }
 
-            $this->error('Failed to clear cache');
+            $this->newLine();
 
-            return self::FAILURE;
+            foreach ($removed as $item) {
+                $this->line("  - {$item}");
+            }
+
+            $this->newLine();
+            $count = count($removed);
+            $this->info($dryRun ? "✓ {$count} item(s) would be removed" : "✓ {$count} item(s) removed");
+
+            return self::SUCCESS;
         } catch (\Exception $e) {
             $this->error('Failed to clear cache: '.$e->getMessage());
 

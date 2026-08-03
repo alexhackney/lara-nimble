@@ -75,7 +75,7 @@ class NimbleClientTest extends TestCase
         ];
 
         $client = new NimbleClient($config, $httpClient);
-        $response = $client->get('/manage/status');
+        $response = $client->get('/manage/server_status');
 
         $this->assertEquals(['status' => 'online'], $response->data());
     }
@@ -97,7 +97,7 @@ class NimbleClientTest extends TestCase
         ];
 
         $client = new NimbleClient($config, $httpClient);
-        $response = $client->post('/manage/publish', ['app' => 'live', 'stream' => 'test']);
+        $response = $client->post('/manage/rtmp/republish', ['src_app' => 'live', 'src_stream' => 'test']);
 
         $this->assertEquals(['success' => true], $response->data());
     }
@@ -119,7 +119,7 @@ class NimbleClientTest extends TestCase
         ];
 
         $client = new NimbleClient($config, $httpClient);
-        $response = $client->delete('/manage/session/123');
+        $response = $client->delete('/manage/rtmp/republish/123');
 
         $this->assertEquals(['success' => true], $response->data());
     }
@@ -142,7 +142,7 @@ class NimbleClientTest extends TestCase
         ];
 
         $client = new NimbleClient($config, $httpClient);
-        $response = $client->get('/manage/status');
+        $response = $client->get('/manage/server_status');
 
         $this->assertEquals(['status' => 'online'], $response->data());
 
@@ -155,7 +155,7 @@ class NimbleClientTest extends TestCase
     public function it_throws_connection_exception_on_network_error(): void
     {
         $mock = new MockHandler([
-            new ConnectException('Connection timeout', new Request('GET', '/manage/status')),
+            new ConnectException('Connection timeout', new Request('GET', '/manage/server_status')),
         ]);
 
         $handlerStack = HandlerStack::create($mock);
@@ -171,7 +171,7 @@ class NimbleClientTest extends TestCase
         $client = new NimbleClient($config, $httpClient);
 
         $this->expectException(NimbleConnectionException::class);
-        $client->get('/manage/status');
+        $client->get('/manage/server_status');
     }
 
     #[Test]
@@ -193,7 +193,7 @@ class NimbleClientTest extends TestCase
         $client = new NimbleClient($config, $httpClient);
 
         $this->expectException(NimbleAuthenticationException::class);
-        $client->get('/manage/status');
+        $client->get('/manage/server_status');
     }
 
     #[Test]
@@ -215,7 +215,7 @@ class NimbleClientTest extends TestCase
         $client = new NimbleClient($config, $httpClient);
 
         $this->expectException(NimbleApiException::class);
-        $client->get('/manage/status');
+        $client->get('/manage/server_status');
     }
 
     #[Test]
@@ -238,6 +238,96 @@ class NimbleClientTest extends TestCase
         $client = new NimbleClient($config, $httpClient);
 
         $this->expectException(NimbleApiException::class);
-        $client->get('/manage/status');
+        $client->get('/manage/server_status');
+    }
+
+    #[Test]
+    public function it_sends_query_params_alongside_a_post_body(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok'])),
+        ]);
+
+        $handlerStack = HandlerStack::create($mock);
+        $httpClient = new Client(['handler' => $handlerStack]);
+
+        $client = new NimbleClient([
+            'host' => 'localhost',
+            'port' => 8082,
+            'protocol' => 'http',
+        ], $httpClient);
+
+        $client->post('/manage/reload_config', [], ['drm' => 'true']);
+
+        $lastRequest = $mock->getLastRequest();
+        $this->assertNotNull($lastRequest);
+        $this->assertSame('drm=true', $lastRequest->getUri()->getQuery());
+    }
+
+    #[Test]
+    public function it_keeps_post_query_params_when_auth_is_enabled(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok'])),
+        ]);
+
+        $handlerStack = HandlerStack::create($mock);
+        $httpClient = new Client(['handler' => $handlerStack]);
+
+        $client = new NimbleClient([
+            'host' => 'localhost',
+            'port' => 8082,
+            'protocol' => 'http',
+            'token' => 'secret-token',
+        ], $httpClient);
+
+        $client->post('/manage/reload_config', [], ['drm' => 'true']);
+
+        $lastRequest = $mock->getLastRequest();
+        $this->assertNotNull($lastRequest);
+
+        parse_str($lastRequest->getUri()->getQuery(), $query);
+        $this->assertSame('true', $query['drm']);
+        $this->assertArrayHasKey('salt', $query);
+        $this->assertArrayHasKey('hash', $query);
+    }
+
+    #[Test]
+    public function it_builds_a_plain_url_without_a_token(): void
+    {
+        $client = new NimbleClient([
+            'host' => 'localhost',
+            'port' => 8082,
+            'protocol' => 'http',
+        ]);
+
+        $this->assertSame(
+            'http://localhost:8082/manage/dvr/export_mp4/live/stream1?start=100',
+            $client->url('/manage/dvr/export_mp4/live/stream1', ['start' => 100])
+        );
+    }
+
+    #[Test]
+    public function it_builds_an_authenticated_url_with_a_token(): void
+    {
+        $client = new NimbleClient([
+            'host' => 'localhost',
+            'port' => 8082,
+            'protocol' => 'http',
+            'token' => 'secret-token',
+        ]);
+
+        $url = $client->url('/manage/dvr/export_mp4/live/stream1');
+
+        $parts = parse_url($url);
+        $this->assertSame('/manage/dvr/export_mp4/live/stream1', $parts['path']);
+
+        parse_str($parts['query'] ?? '', $query);
+        $this->assertArrayHasKey('salt', $query);
+        $this->assertArrayHasKey('hash', $query);
+
+        // The hash must verify against the documented salt/token scheme
+        $expected = base64_encode(md5($query['salt'].'/secret-token', true));
+        $this->assertSame($expected, $query['hash']);
     }
 }

@@ -36,7 +36,6 @@ abstract class TestCase extends Orchestra
         config()->set('nimble.retry_times', 3);
         config()->set('nimble.retry_sleep', 100);
         config()->set('nimble.log_requests', false);
-        config()->set('nimble.cache_enabled', false);
         config()->set('nimble.verify_ssl', true);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AlexHackney\LaraNimble\Tests\Unit\DTOs;
 
 use AlexHackney\LaraNimble\DTOs\RestreamDto;
+use AlexHackney\LaraNimble\Enums\AuthSchema;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -280,5 +281,72 @@ class RestreamDtoTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         RestreamDto::fromUrl('live', 'stream1', 'rtmp:///live/key');
+    }
+
+    #[Test]
+    public function it_accepts_an_auth_schema_enum(): void
+    {
+        $dto = new RestreamDto(
+            srcApp: 'live',
+            srcStream: 'stream1',
+            destAddr: 'example.com',
+            destPort: 1935,
+            destApp: 'live',
+            destStream: 'key',
+            authSchema: AuthSchema::NIMBLE,
+        );
+
+        $this->assertSame('NIMBLE', $dto->authSchema);
+
+        $fromUrl = RestreamDto::fromUrl('live', 'stream1', 'rtmp://example.com/live/key', authSchema: AuthSchema::AKAMAI);
+
+        $this->assertSame('AKAMAI', $fromUrl->authSchema);
+    }
+
+    #[Test]
+    public function it_matches_rules_regardless_of_id(): void
+    {
+        $a = RestreamDto::fromArray($this->fullData());
+        $b = RestreamDto::fromArray(['id' => 999] + $this->fullData());
+
+        $this->assertTrue($a->matches($b));
+        $this->assertSame($a->fingerprint(), $b->fingerprint());
+    }
+
+    #[Test]
+    public function it_treats_unset_optionals_as_defaults_when_matching(): void
+    {
+        $local = new RestreamDto(
+            srcApp: 'live',
+            srcStream: 'stream1',
+            destAddr: 'Example.com',
+            destPort: 1935,
+            destApp: 'live',
+            destStream: 'key',
+        );
+
+        $fromServer = RestreamDto::fromArray([
+            'id' => 7,
+            'src_app' => 'live',
+            'src_stream' => 'stream1',
+            'dest_addr' => 'example.com',
+            'dest_port' => 1935,
+            'dest_app' => 'live',
+            'dest_stream' => 'key',
+            'ssl' => false,
+            'auth_schema' => 'NONE',
+            'keep_src_stream_params' => false,
+        ]);
+
+        $this->assertTrue($local->matches($fromServer));
+    }
+
+    #[Test]
+    public function it_does_not_match_rules_with_different_destinations(): void
+    {
+        $a = RestreamDto::fromArray($this->fullData());
+        $b = RestreamDto::fromArray(['dest_stream' => 'other-key'] + $this->fullData());
+
+        $this->assertFalse($a->matches($b));
     }
 }

@@ -7,6 +7,9 @@ namespace AlexHackney\LaraNimble\Services;
 use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\DTOs\RestreamDto;
 use AlexHackney\LaraNimble\DTOs\RestreamStatsDto;
+use AlexHackney\LaraNimble\DTOs\RestreamSyncResult;
+use AlexHackney\LaraNimble\Events\RestreamRuleCreated;
+use AlexHackney\LaraNimble\Events\RestreamRuleDeleted;
 use AlexHackney\LaraNimble\Exceptions\NimbleApiException;
 use Illuminate\Support\Collection;
 
@@ -74,7 +77,15 @@ class RestreamService
             );
         }
 
-        return RestreamDto::fromArray($created);
+        $rule = RestreamDto::fromArray($created);
+
+        try {
+            event(new RestreamRuleCreated($rule));
+        } catch (\Throwable) {
+            // Event dispatcher not available (e.g., in unit tests)
+        }
+
+        return $rule;
     }
 
     /**
@@ -84,7 +95,71 @@ class RestreamService
     {
         $response = $this->client->delete("/manage/rtmp/republish/{$ruleId}");
 
-        return strcasecmp((string) $response->get('status', ''), 'ok') === 0;
+        $success = strcasecmp((string) $response->get('status', ''), 'ok') === 0;
+
+        if ($success) {
+            try {
+                event(new RestreamRuleDeleted($ruleId));
+            } catch (\Throwable) {
+                // Event dispatcher not available (e.g., in unit tests)
+            }
+        }
+
+        return $success;
+    }
+
+    /**
+     * Converge the server's API-created rules onto a desired set.
+     *
+     * Rules are compared by fingerprint (all fields except id): missing
+     * rules are created, unwanted or duplicate rules are deleted, and
+     * matching rules are kept untouched. Because list() only sees rules
+     * created through the native API, WMSPanel-defined rules are never
+     * affected. Run this after a Nimble reload/restart too, since
+     * API-created rules do not persist.
+     *
+     * @param  iterable<int, RestreamDto>  $desired
+     *
+     * @throws NimbleApiException when a rule fails to create
+     */
+    public function sync(iterable $desired): RestreamSyncResult
+    {
+        /** @var Collection<int, RestreamDto> $desiredRules */
+        $desiredRules = collect($desired)
+            ->unique(fn (RestreamDto $rule) => $rule->fingerprint())
+            ->values();
+
+        $current = $this->list();
+        $currentByFingerprint = $current->groupBy(fn (RestreamDto $rule) => $rule->fingerprint());
+
+        $created = collect();
+        $kept = collect();
+
+        foreach ($desiredRules as $rule) {
+            /** @var Collection<int, RestreamDto>|null $matching */
+            $matching = $currentByFingerprint->get($rule->fingerprint());
+
+            if ($matching !== null && $matching->isNotEmpty()) {
+                $kept->push($matching->first());
+            } else {
+                $created->push($this->create($rule));
+            }
+        }
+
+        $keptIds = $kept->map(fn (RestreamDto $rule) => $rule->id)->all();
+        $deleted = collect();
+
+        foreach ($current as $rule) {
+            if ($rule->id === null || in_array($rule->id, $keptIds, true)) {
+                continue;
+            }
+
+            if ($this->delete($rule->id)) {
+                $deleted->push($rule);
+            }
+        }
+
+        return new RestreamSyncResult(created: $created, deleted: $deleted, kept: $kept);
     }
 
     /**

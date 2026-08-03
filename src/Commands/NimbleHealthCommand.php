@@ -55,19 +55,17 @@ class NimbleHealthCommand extends Command
         try {
             $status = Nimble::server()->status();
 
-            if ($status->status === 'online') {
-                $this->components->info('Server Status: Online');
+            $this->components->info('Server Status: Online');
 
-                if ($status->version) {
-                    $this->components->task("Version: {$status->version}");
-                }
-
-                return true;
+            if ($status->connections !== null) {
+                $this->components->task("Active connections: {$status->connections}");
             }
 
-            $this->components->error("Server Status: {$status->status}");
+            if ($status->outRate !== null) {
+                $this->components->task('Out rate: '.number_format($status->outRate));
+            }
 
-            return false;
+            return true;
         } catch (\Exception $e) {
             $this->components->error('Server Status: Failed to connect');
             $this->line("  Error: {$e->getMessage()}");

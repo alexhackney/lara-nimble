@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AlexHackney\LaraNimble\DTOs;
 
+use AlexHackney\LaraNimble\Enums\AuthSchema;
 use InvalidArgumentException;
 
 /**
@@ -15,8 +16,10 @@ use InvalidArgumentException;
  */
 class RestreamDto
 {
+    public readonly ?string $authSchema;
+
     /**
-     * @param  string|null  $authSchema  One of NONE, NIMBLE, AKAMAI, LIMELIGHT, PERISCOPE
+     * @param  AuthSchema|string|null  $authSchema  One of NONE, NIMBLE, AKAMAI, LIMELIGHT, PERISCOPE
      */
     public function __construct(
         public readonly string $srcApp,
@@ -26,14 +29,16 @@ class RestreamDto
         public readonly string $destApp,
         public readonly string $destStream,
         public readonly ?bool $ssl = null,
-        public readonly ?string $authSchema = null,
+        AuthSchema|string|null $authSchema = null,
         public readonly ?string $destLogin = null,
         public readonly ?string $destPassword = null,
         public readonly ?bool $keepSrcStreamParams = null,
         public readonly ?string $destAppParams = null,
         public readonly ?string $destStreamParams = null,
         public readonly int|string|null $id = null,
-    ) {}
+    ) {
+        $this->authSchema = $authSchema instanceof AuthSchema ? $authSchema->value : $authSchema;
+    }
 
     /**
      * Create a RestreamDto from an array of data.
@@ -71,7 +76,7 @@ class RestreamDto
         string $srcApp,
         string $srcStream,
         string $url,
-        ?string $authSchema = null,
+        AuthSchema|string|null $authSchema = null,
         ?string $destLogin = null,
         ?string $destPassword = null,
         ?bool $keepSrcStreamParams = null,
@@ -169,5 +174,38 @@ class RestreamDto
         unset($payload['id']);
 
         return array_filter($payload, fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * Normalized identity of the rule, ignoring the server-assigned id.
+     *
+     * Unset booleans are treated as false and an unset auth schema as NONE,
+     * so a rule built locally matches the same rule as Nimble reports it.
+     */
+    public function fingerprint(): string
+    {
+        return implode('|', [
+            $this->srcApp,
+            $this->srcStream,
+            strtolower($this->destAddr),
+            (string) $this->destPort,
+            $this->destApp,
+            $this->destStream,
+            ($this->ssl ?? false) ? '1' : '0',
+            strtoupper($this->authSchema ?? AuthSchema::NONE->value),
+            $this->destLogin ?? '',
+            $this->destPassword ?? '',
+            ($this->keepSrcStreamParams ?? false) ? '1' : '0',
+            $this->destAppParams ?? '',
+            $this->destStreamParams ?? '',
+        ]);
+    }
+
+    /**
+     * Whether this rule describes the same republish as another, ignoring ids.
+     */
+    public function matches(self $other): bool
+    {
+        return $this->fingerprint() === $other->fingerprint();
     }
 }

@@ -13,63 +13,49 @@ class ServerStatusDtoTest extends TestCase
     #[Test]
     public function it_can_be_created_from_array(): void
     {
-        $data = [
-            'status' => 'online',
-            'version' => '4.5.1',
-            'uptime' => 123456,
-            'connections' => 42,
-            'bandwidth' => [
-                'in' => 1234567,
-                'out' => 7654321,
-            ],
-        ];
+        $dto = ServerStatusDto::fromArray([
+            'Connections' => 10,
+            'OutRate' => 5120000,
+            'SysInfo' => ['ap' => 2, 'scl' => 0, 'tpms' => 2098434048, 'fpms' => 775127040],
+            'RamCacheSize' => 1024,
+            'FileCacheSize' => 2048,
+            'MaxRamCacheSize' => 4096,
+            'MaxFileCacheSize' => 8192,
+        ]);
 
-        $dto = ServerStatusDto::fromArray($data);
-
-        $this->assertInstanceOf(ServerStatusDto::class, $dto);
-        $this->assertEquals('online', $dto->status);
-        $this->assertEquals('4.5.1', $dto->version);
-        $this->assertEquals(123456, $dto->uptime);
-        $this->assertEquals(42, $dto->connections);
-        $this->assertIsArray($dto->bandwidth);
-        $this->assertEquals(1234567, $dto->bandwidth['in']);
+        $this->assertSame(10, $dto->connections);
+        $this->assertSame(5120000, $dto->outRate);
+        $this->assertSame(1024, $dto->ramCacheSize);
+        $this->assertSame(2048, $dto->fileCacheSize);
+        $this->assertSame(4096, $dto->maxRamCacheSize);
+        $this->assertSame(8192, $dto->maxFileCacheSize);
+        $this->assertSame(775127040, $dto->sysInfo['fpms']);
     }
 
     #[Test]
-    public function it_can_handle_optional_fields(): void
+    public function it_tolerates_missing_fields(): void
     {
-        $data = [
-            'status' => 'online',
-        ];
+        $dto = ServerStatusDto::fromArray([]);
 
-        $dto = ServerStatusDto::fromArray($data);
-
-        $this->assertNull($dto->version);
-        $this->assertNull($dto->uptime);
         $this->assertNull($dto->connections);
-        $this->assertNull($dto->bandwidth);
+        $this->assertNull($dto->outRate);
+        $this->assertNull($dto->ramCacheSize);
+        $this->assertSame([], $dto->sysInfo);
     }
 
     #[Test]
-    public function it_can_be_converted_to_array(): void
+    public function it_can_be_converted_to_array_with_wire_field_names(): void
     {
         $data = [
-            'status' => 'online',
-            'version' => '4.5.1',
-            'uptime' => 123456,
-            'connections' => 42,
-            'bandwidth' => [
-                'in' => 1234567,
-                'out' => 7654321,
-            ],
+            'Connections' => 10,
+            'OutRate' => 5120000,
+            'RamCacheSize' => 1024,
+            'FileCacheSize' => 2048,
+            'MaxRamCacheSize' => 4096,
+            'MaxFileCacheSize' => 8192,
+            'SysInfo' => ['ap' => 2],
         ];
 
-        $dto = ServerStatusDto::fromArray($data);
-        $array = $dto->toArray();
-
-        $this->assertIsArray($array);
-        $this->assertEquals('online', $array['status']);
-        $this->assertEquals('4.5.1', $array['version']);
-        $this->assertEquals(42, $array['connections']);
+        $this->assertEquals($data, ServerStatusDto::fromArray($data)->toArray());
     }
 }

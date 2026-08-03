@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace AlexHackney\LaraNimble\DTOs;
 
 /**
- * Data Transfer Object for Server status information.
+ * Data Transfer Object for GET /manage/server_status.
+ *
+ * SysInfo is kept as the raw array Nimble returns; its abbreviated keys
+ * (ap, scl, tpms, fpms, tsss, fsss) are not documented by Softvelum.
  */
 class ServerStatusDto
 {
     public function __construct(
-        public readonly string $status,
-        public readonly ?string $version = null,
-        public readonly ?int $uptime = null,
         public readonly ?int $connections = null,
-        public readonly ?array $bandwidth = null,
+        public readonly ?int $outRate = null,
+        public readonly ?int $ramCacheSize = null,
+        public readonly ?int $fileCacheSize = null,
+        public readonly ?int $maxRamCacheSize = null,
+        public readonly ?int $maxFileCacheSize = null,
+        public readonly array $sysInfo = [],
     ) {}
 
     /**
@@ -23,25 +28,29 @@ class ServerStatusDto
     public static function fromArray(array $data): self
     {
         return new self(
-            status: $data['status'],
-            version: $data['version'] ?? null,
-            uptime: $data['uptime'] ?? null,
-            connections: $data['connections'] ?? null,
-            bandwidth: $data['bandwidth'] ?? null,
+            connections: isset($data['Connections']) ? (int) $data['Connections'] : null,
+            outRate: isset($data['OutRate']) ? (int) $data['OutRate'] : null,
+            ramCacheSize: isset($data['RamCacheSize']) ? (int) $data['RamCacheSize'] : null,
+            fileCacheSize: isset($data['FileCacheSize']) ? (int) $data['FileCacheSize'] : null,
+            maxRamCacheSize: isset($data['MaxRamCacheSize']) ? (int) $data['MaxRamCacheSize'] : null,
+            maxFileCacheSize: isset($data['MaxFileCacheSize']) ? (int) $data['MaxFileCacheSize'] : null,
+            sysInfo: $data['SysInfo'] ?? [],
         );
     }
 
     /**
-     * Convert the DTO to an array.
+     * Convert the DTO to an array using Nimble's wire field names.
      */
     public function toArray(): array
     {
         return [
-            'status' => $this->status,
-            'version' => $this->version,
-            'uptime' => $this->uptime,
-            'connections' => $this->connections,
-            'bandwidth' => $this->bandwidth,
+            'Connections' => $this->connections,
+            'OutRate' => $this->outRate,
+            'RamCacheSize' => $this->ramCacheSize,
+            'FileCacheSize' => $this->fileCacheSize,
+            'MaxRamCacheSize' => $this->maxRamCacheSize,
+            'MaxFileCacheSize' => $this->maxFileCacheSize,
+            'SysInfo' => $this->sysInfo,
         ];
     }
 }

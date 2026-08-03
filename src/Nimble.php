@@ -7,8 +7,11 @@ namespace AlexHackney\LaraNimble;
 use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\Services\CacheService;
 use AlexHackney\LaraNimble\Services\DvrService;
-use AlexHackney\LaraNimble\Services\PullService;
+use AlexHackney\LaraNimble\Services\IcecastService;
+use AlexHackney\LaraNimble\Services\ProtocolService;
+use AlexHackney\LaraNimble\Services\PublishControlService;
 use AlexHackney\LaraNimble\Services\RestreamService;
+use AlexHackney\LaraNimble\Services\Scte35Service;
 use AlexHackney\LaraNimble\Services\ServerService;
 use AlexHackney\LaraNimble\Services\SessionService;
 use AlexHackney\LaraNimble\Services\StreamService;
@@ -76,14 +79,6 @@ class Nimble
     }
 
     /**
-     * Access the Pull service.
-     */
-    public function pull(): PullService
-    {
-        return $this->services['pull'] ??= new PullService($this->client);
-    }
-
-    /**
      * Access the Server service.
      */
     public function server(): ServerService
@@ -92,10 +87,42 @@ class Nimble
     }
 
     /**
-     * Access the Cache service.
+     * Access the data cache service.
      */
     public function cache(): CacheService
     {
         return $this->services['cache'] ??= new CacheService($this->client);
+    }
+
+    /**
+     * Access the Publish Control service.
+     */
+    public function publishControl(): PublishControlService
+    {
+        return $this->services['publishControl'] ??= new PublishControlService($this->client);
+    }
+
+    /**
+     * Access the protocol status/settings service.
+     */
+    public function protocols(): ProtocolService
+    {
+        return $this->services['protocols'] ??= new ProtocolService($this->client);
+    }
+
+    /**
+     * Access the Icecast metadata service.
+     */
+    public function icecast(): IcecastService
+    {
+        return $this->services['icecast'] ??= new IcecastService($this->client);
+    }
+
+    /**
+     * Access the SCTE-35 ad marker service.
+     */
+    public function scte35(): Scte35Service
+    {
+        return $this->services['scte35'] ??= new Scte35Service($this->client);
     }
 }

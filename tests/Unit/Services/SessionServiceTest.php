@@ -10,132 +10,151 @@ use AlexHackney\LaraNimble\Services\SessionService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 
 class SessionServiceTest extends TestCase
 {
+    /** @var array<int, array{request: RequestInterface}> */
+    private array $history = [];
+
     private function createService(MockHandler $mockHandler): SessionService
     {
+        $this->history = [];
+
         $handlerStack = HandlerStack::create($mockHandler);
+        $handlerStack->push(Middleware::history($this->history));
         $httpClient = new Client(['handler' => $handlerStack]);
 
-        $config = [
+        $nimbleClient = new NimbleClient([
             'host' => 'localhost',
             'port' => 8082,
             'protocol' => 'http',
-        ];
-
-        $nimbleClient = new NimbleClient($config, $httpClient);
+        ], $httpClient);
 
         return new SessionService($nimbleClient);
     }
 
-    #[Test]
-    public function it_can_list_sessions(): void
+    private function lastRequest(): RequestInterface
     {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'sessions' => [
-                    [
-                        'id' => 'session-1',
-                        'stream_id' => 'stream-123',
-                        'client_ip' => '192.168.1.100',
-                        'protocol' => 'rtmp',
-                        'duration' => 3600,
-                    ],
-                    [
-                        'id' => 'session-2',
-                        'stream_id' => 'stream-456',
-                        'client_ip' => '192.168.1.101',
-                        'protocol' => 'srt',
-                        'duration' => 1800,
-                    ],
-                ],
-            ])),
-        ]);
+        $this->assertNotEmpty($this->history);
 
-        $service = $this->createService($mock);
+        return $this->history[count($this->history) - 1]['request'];
+    }
+
+    private function sessionsResponse(): Response
+    {
+        return new Response(200, [], json_encode([
+            [
+                'id' => 4,
+                'app' => 'live',
+                'stream' => 'stream1',
+                'type' => 'HLS',
+                'created' => 1654499440,
+                'last_access' => 1654499466,
+                'client_ip' => '127.0.0.1',
+                'user_agent' => 'Mozilla/5.0',
+                'bytes_recv' => 100,
+                'bytes_sent' => 20000,
+            ],
+            ['id' => 5, 'app' => 'live', 'stream' => 'stream2', 'type' => 'MPEG-DASH'],
+        ]));
+    }
+
+    #[Test]
+    public function it_lists_active_sessions(): void
+    {
+        $service = $this->createService(new MockHandler([$this->sessionsResponse()]));
         $sessions = $service->list();
 
         $this->assertInstanceOf(Collection::class, $sessions);
         $this->assertCount(2, $sessions);
         $this->assertContainsOnlyInstancesOf(SessionDto::class, $sessions);
-        $this->assertEquals('session-1', $sessions->first()->id);
+
+        $first = $sessions->first();
+        $this->assertSame(4, $first->id);
+        $this->assertSame('live', $first->app);
+        $this->assertSame('HLS', $first->type);
+        $this->assertSame(1654499440, $first->created);
+        $this->assertSame(20000, $first->bytesSent);
+
+        $request = $this->lastRequest();
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/manage/sessions', $request->getUri()->getPath());
     }
 
     #[Test]
-    public function it_can_get_a_specific_session(): void
+    public function it_finds_a_session_by_id(): void
     {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'id' => 'session-456',
-                'stream_id' => 'stream-123',
-                'client_ip' => '192.168.1.100',
-                'protocol' => 'rtmp',
-                'duration' => 3600,
-            ])),
-        ]);
+        $service = $this->createService(new MockHandler([$this->sessionsResponse()]));
 
-        $service = $this->createService($mock);
-        $session = $service->get('session-456');
+        $session = $service->find(5);
 
         $this->assertInstanceOf(SessionDto::class, $session);
-        $this->assertEquals('session-456', $session->id);
-        $this->assertEquals('stream-123', $session->streamId);
+        $this->assertSame('stream2', $session->stream);
     }
 
     #[Test]
-    public function it_can_terminate_a_session(): void
+    public function it_returns_null_for_an_unknown_session(): void
     {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'success' => true,
-                'message' => 'Session terminated',
-            ])),
-        ]);
+        $service = $this->createService(new MockHandler([$this->sessionsResponse()]));
 
-        $service = $this->createService($mock);
-        $result = $service->terminate('session-456');
-
-        $this->assertTrue($result);
+        $this->assertNull($service->find(999));
     }
 
     #[Test]
-    public function it_returns_false_when_terminate_fails(): void
+    public function it_terminates_sessions_with_a_raw_id_array_body(): void
     {
         $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'success' => false,
-                'error' => 'Session not found',
-            ])),
+            new Response(200, [], json_encode(['status' => 'Ok'])),
         ]);
 
         $service = $this->createService($mock);
-        $result = $service->terminate('session-456');
 
-        $this->assertFalse($result);
+        $this->assertTrue($service->terminate([4, 5]));
+
+        $request = $this->lastRequest();
+        $this->assertSame('POST', $request->getMethod());
+        $this->assertSame('/manage/sessions/delete', $request->getUri()->getPath());
+        $this->assertSame([4, 5], json_decode((string) $request->getBody(), true));
     }
 
     #[Test]
-    public function it_can_get_session_statistics(): void
+    public function it_terminates_a_single_session(): void
     {
         $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'session_id' => 'session-456',
-                'duration' => 3600,
-                'bytes_transferred' => 1234567890,
-                'bitrate' => 2500,
-            ])),
+            new Response(200, [], json_encode(['status' => 'Ok'])),
         ]);
 
         $service = $this->createService($mock);
-        $stats = $service->statistics('session-456');
 
-        $this->assertIsArray($stats);
-        $this->assertEquals('session-456', $stats['session_id']);
-        $this->assertEquals(3600, $stats['duration']);
+        $this->assertTrue($service->terminate(4));
+
+        $this->assertSame([4], json_decode((string) $this->lastRequest()->getBody(), true));
+    }
+
+    #[Test]
+    public function it_returns_false_when_termination_fails(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Error'])),
+        ]);
+
+        $service = $this->createService($mock);
+
+        $this->assertFalse($service->terminate([4]));
+    }
+
+    #[Test]
+    public function it_refuses_to_terminate_an_empty_id_list(): void
+    {
+        $service = $this->createService(new MockHandler([]));
+
+        $this->assertFalse($service->terminate([]));
+        $this->assertEmpty($this->history);
     }
 }

@@ -4,22 +4,27 @@ declare(strict_types=1);
 
 namespace AlexHackney\LaraNimble\DTOs;
 
-use AlexHackney\LaraNimble\Enums\StreamProtocol;
-use AlexHackney\LaraNimble\Enums\StreamStatus;
-
 /**
- * Data Transfer Object for Stream information.
+ * Data Transfer Object for a live stream entry from
+ * GET /manage/live_streams_status.
+ *
+ * Nimble groups streams by application; StreamService flattens the groups
+ * and injects the application name under the 'app' key.
  */
 class StreamDto
 {
     public function __construct(
-        public readonly string $id,
-        public readonly string $name,
-        public readonly StreamStatus $status,
-        public readonly StreamProtocol $protocol,
-        public readonly ?string $source = null,
-        public readonly ?int $bitrate = null,
-        public readonly ?int $viewers = null,
+        public readonly string $app,
+        public readonly string $stream,
+        public readonly ?int $bandwidth = null,
+        public readonly ?string $resolution = null,
+        public readonly ?string $vcodec = null,
+        public readonly ?string $acodec = null,
+        public readonly ?string $protocol = null,
+        public readonly ?string $sourceUrl = null,
+        public readonly ?string $publisherIp = null,
+        public readonly ?int $publisherPort = null,
+        public readonly ?int $publishTime = null,
     ) {}
 
     /**
@@ -28,29 +33,37 @@ class StreamDto
     public static function fromArray(array $data): self
     {
         return new self(
-            id: $data['id'],
-            name: $data['name'],
-            status: StreamStatus::from($data['status']),
-            protocol: StreamProtocol::from($data['protocol']),
-            source: $data['source'] ?? null,
-            bitrate: $data['bitrate'] ?? null,
-            viewers: $data['viewers'] ?? null,
+            app: $data['app'] ?? '',
+            stream: $data['strm'] ?? $data['stream'] ?? '',
+            bandwidth: isset($data['bandwidth']) ? (int) $data['bandwidth'] : null,
+            resolution: $data['resolution'] ?? null,
+            vcodec: $data['vcodec'] ?? null,
+            acodec: $data['acodec'] ?? null,
+            protocol: $data['protocol'] ?? null,
+            sourceUrl: $data['source_url'] ?? null,
+            publisherIp: $data['publisher_ip'] ?? null,
+            publisherPort: isset($data['publisher_port']) ? (int) $data['publisher_port'] : null,
+            publishTime: isset($data['publish_time']) ? (int) $data['publish_time'] : null,
         );
     }
 
     /**
-     * Convert the DTO to an array.
+     * Convert the DTO to an array using Nimble's wire field names.
      */
     public function toArray(): array
     {
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'status' => $this->status->value,
-            'protocol' => $this->protocol->value,
-            'source' => $this->source,
-            'bitrate' => $this->bitrate,
-            'viewers' => $this->viewers,
+            'app' => $this->app,
+            'strm' => $this->stream,
+            'bandwidth' => $this->bandwidth,
+            'resolution' => $this->resolution,
+            'vcodec' => $this->vcodec,
+            'acodec' => $this->acodec,
+            'protocol' => $this->protocol,
+            'source_url' => $this->sourceUrl,
+            'publisher_ip' => $this->publisherIp,
+            'publisher_port' => $this->publisherPort,
+            'publish_time' => $this->publishTime,
         ];
     }
 }

@@ -8,7 +8,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class StreamPublished
+class RestreamRuleDeleted
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -16,7 +16,6 @@ class StreamPublished
      * Create a new event instance.
      */
     public function __construct(
-        public readonly string $app,
-        public readonly string $stream,
+        public readonly int|string $ruleId,
     ) {}
 }
