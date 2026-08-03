@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace AlexHackney\LaraNimble\Tests\Unit\DTOs;
 
 use AlexHackney\LaraNimble\DTOs\SessionDto;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class SessionDtoTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_can_be_created_from_array(): void
     {
         $data = [
@@ -31,7 +32,7 @@ class SessionDtoTest extends TestCase
         $this->assertEquals('rtmp', $dto->protocol);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_handle_optional_fields(): void
     {
         $data = [
@@ -48,7 +49,7 @@ class SessionDtoTest extends TestCase
         $this->assertNull($dto->bytesTransferred);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_be_converted_to_array(): void
     {
         $data = [

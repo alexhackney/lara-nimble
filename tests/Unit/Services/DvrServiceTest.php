@@ -12,6 +12,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class DvrServiceTest extends TestCase
@@ -32,7 +33,7 @@ class DvrServiceTest extends TestCase
         return new DvrService($nimbleClient);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_list_archives(): void
     {
         $mock = new MockHandler([
@@ -65,7 +66,7 @@ class DvrServiceTest extends TestCase
         $this->assertEquals('archive-1', $archives->first()->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_a_specific_archive(): void
     {
         $mock = new MockHandler([
@@ -86,7 +87,7 @@ class DvrServiceTest extends TestCase
         $this->assertEquals('stream-123', $archive->streamId);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_delete_an_archive(): void
     {
         $mock = new MockHandler([
@@ -102,7 +103,7 @@ class DvrServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_delete_fails(): void
     {
         $mock = new MockHandler([
@@ -118,7 +119,7 @@ class DvrServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_configure_dvr_settings(): void
     {
         $mock = new MockHandler([

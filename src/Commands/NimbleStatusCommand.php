@@ -98,7 +98,7 @@ class NimbleStatusCommand extends Command
     private function formatBytes(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $factor = floor((strlen((string) $bytes) - 1) / 3);
+        $factor = min((int) floor((strlen((string) $bytes) - 1) / 3), count($units) - 1);
 
         return sprintf('%.2f %s', $bytes / (1024 ** $factor), $units[$factor]);
     }

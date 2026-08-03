@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace AlexHackney\LaraNimble\Tests\Unit\DTOs;
 
 use AlexHackney\LaraNimble\DTOs\StreamStatsDto;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class StreamStatsDtoTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_can_be_created_from_array(): void
     {
         $data = [
@@ -49,7 +50,7 @@ class StreamStatsDtoTest extends TestCase
         $this->assertEquals('2024-01-01 12:00:00', $dto->startTime);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_handle_optional_fields(): void
     {
         $data = [
@@ -67,7 +68,7 @@ class StreamStatsDtoTest extends TestCase
         $this->assertNull($dto->protocol);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_be_converted_to_array(): void
     {
         $dto = new StreamStatsDto(
@@ -107,7 +108,7 @@ class StreamStatsDtoTest extends TestCase
         $this->assertEquals('2024-01-01 12:00:00', $array['start_time']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_alternative_field_names_from_api(): void
     {
         // Test with 'name' instead of 'stream_name'

@@ -7,11 +7,12 @@ namespace AlexHackney\LaraNimble\Tests\Unit\Enums;
 use AlexHackney\LaraNimble\Enums\PublishAction;
 use AlexHackney\LaraNimble\Enums\StreamProtocol;
 use AlexHackney\LaraNimble\Enums\StreamStatus;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class EnumTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function stream_protocol_enum_has_expected_cases(): void
     {
         $this->assertEquals('rtmp', StreamProtocol::RTMP->value);
@@ -22,7 +23,7 @@ class EnumTest extends TestCase
         $this->assertEquals('rtsp', StreamProtocol::RTSP->value);
     }
 
-    /** @test */
+    #[Test]
     public function stream_protocol_enum_has_all_cases(): void
     {
         $cases = StreamProtocol::cases();
@@ -31,7 +32,7 @@ class EnumTest extends TestCase
         $this->assertContainsOnlyInstancesOf(StreamProtocol::class, $cases);
     }
 
-    /** @test */
+    #[Test]
     public function stream_status_enum_has_expected_cases(): void
     {
         $this->assertEquals('active', StreamStatus::ACTIVE->value);
@@ -39,7 +40,7 @@ class EnumTest extends TestCase
         $this->assertEquals('error', StreamStatus::ERROR->value);
     }
 
-    /** @test */
+    #[Test]
     public function stream_status_enum_has_all_cases(): void
     {
         $cases = StreamStatus::cases();
@@ -48,14 +49,14 @@ class EnumTest extends TestCase
         $this->assertContainsOnlyInstancesOf(StreamStatus::class, $cases);
     }
 
-    /** @test */
+    #[Test]
     public function publish_action_enum_has_expected_cases(): void
     {
         $this->assertEquals('publish', PublishAction::PUBLISH->value);
         $this->assertEquals('unpublish', PublishAction::UNPUBLISH->value);
     }
 
-    /** @test */
+    #[Test]
     public function publish_action_enum_has_all_cases(): void
     {
         $cases = PublishAction::cases();
@@ -64,7 +65,7 @@ class EnumTest extends TestCase
         $this->assertContainsOnlyInstancesOf(PublishAction::class, $cases);
     }
 
-    /** @test */
+    #[Test]
     public function stream_protocol_can_be_created_from_string(): void
     {
         $protocol = StreamProtocol::from('rtmp');
@@ -72,7 +73,7 @@ class EnumTest extends TestCase
         $this->assertEquals(StreamProtocol::RTMP, $protocol);
     }
 
-    /** @test */
+    #[Test]
     public function stream_status_can_be_created_from_string(): void
     {
         $status = StreamStatus::from('active');
@@ -80,7 +81,7 @@ class EnumTest extends TestCase
         $this->assertEquals(StreamStatus::ACTIVE, $status);
     }
 
-    /** @test */
+    #[Test]
     public function publish_action_can_be_created_from_string(): void
     {
         $action = PublishAction::from('publish');

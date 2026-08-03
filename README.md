@@ -29,8 +29,8 @@ A comprehensive Laravel package for seamless integration with Nimble Streamer AP
 
 ## Requirements
 
-- PHP 8.1 or higher
-- Laravel 10 or 11
+- PHP 8.1 – 8.5
+- Laravel 10, 11, 12 or 13
 - Nimble Streamer with API enabled
 - Composer
 
@@ -282,45 +282,58 @@ if (Nimble::dvr()->configure([
 }
 ```
 
-### Restream Management
+### Restream Management (RTMP Republishing)
+
+Restreaming uses Nimble's native RTMP republishing API (`/manage/rtmp/republish`).
 
 ```php
+use AlexHackney\LaraNimble\DTOs\RestreamDto;
 use AlexHackney\LaraNimble\Facades\Nimble;
 
-// List all restream targets
-$restreams = Nimble::restream()->list();
-foreach ($restreams as $restream) {
-    echo "Target: {$restream->targetUrl}\n";
-    echo "Protocol: {$restream->protocol}\n";
-    echo "Status: {$restream->status}\n";
-    echo "Enabled: " . ($restream->enabled ? 'Yes' : 'No') . "\n";
+// List republishing rules created through this API
+$rules = Nimble::restream()->list();
+foreach ($rules as $rule) {
+    echo "Rule {$rule->id}: {$rule->srcApp}/{$rule->srcStream}";
+    echo " -> {$rule->destAddr}:{$rule->destPort}/{$rule->destApp}/{$rule->destStream}\n";
 }
 
-// Get a specific restream target
-$restream = Nimble::restream()->get('restream-123');
-echo "Target URL: {$restream->targetUrl}";
+// Get a specific rule (null when it does not exist)
+$rule = Nimble::restream()->get(42);
 
-// Add a new restream target
-if (Nimble::restream()->add('stream-123', [
-    'target_url' => 'rtmp://live.youtube.com/stream/key123',
-    'protocol' => 'rtmp',
-    'enabled' => true,
-])) {
-    echo "Restream target added successfully!";
+// Create a rule from explicit fields
+$created = Nimble::restream()->create(new RestreamDto(
+    srcApp: 'live',
+    srcStream: 'stream1',
+    destAddr: 'a.rtmp.youtube.com',
+    destPort: 1935,
+    destApp: 'live2',
+    destStream: 'your-stream-key',
+));
+echo "Created rule {$created->id}";
+
+// Or decompose an RTMP(S) publishing URL, e.g. Facebook's secure_stream_url
+$created = Nimble::restream()->create(RestreamDto::fromUrl(
+    'live',
+    'stream1',
+    'rtmps://live-api-s.facebook.com:443/rtmp/your-stream-key'
+));
+
+// Delete a rule
+if (Nimble::restream()->delete(42)) {
+    echo "Rule deleted!";
 }
 
-// Update a restream target
-if (Nimble::restream()->update('restream-123', [
-    'enabled' => false,
-])) {
-    echo "Restream target updated!";
-}
-
-// Delete a restream target
-if (Nimble::restream()->delete('restream-123')) {
-    echo "Restream target deleted!";
+// Connection statistics for all rules
+foreach (Nimble::restream()->stats() as $stat) {
+    echo "Rule {$stat->id}: {$stat->state}, {$stat->bandwidth} bandwidth\n";
 }
 ```
+
+Notes from the Nimble API docs:
+
+- `src_stream` is optional in the raw API, but omitting it republishes **every** stream in the source application, so `RestreamDto` refuses to build a create payload without it.
+- `list()` only returns rules created through the native API — rules defined in WMSPanel do not appear.
+- Rules created through the native API are not persisted across a Nimble config reload or restart; recreate them as needed.
 
 ### Stream Pulling
 
@@ -652,8 +665,8 @@ The MIT License (MIT). See [LICENSE](LICENSE) for details.
 **Developed by:** Alex Hackney
 
 **Built with:**
-- Laravel 10 & 11
-- PHP 8.1+
+- Laravel 10 – 13
+- PHP 8.1 – 8.5
 - Nimble Streamer API
 
 ## Artisan Commands

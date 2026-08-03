@@ -8,10 +8,11 @@ use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\Facades\Nimble as NimbleFacade;
 use AlexHackney\LaraNimble\Nimble;
 use AlexHackney\LaraNimble\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class FacadeTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_resolves_to_nimble_manager_instance(): void
     {
         $instance = NimbleFacade::getFacadeRoot();
@@ -19,7 +20,7 @@ class FacadeTest extends TestCase
         $this->assertInstanceOf(Nimble::class, $instance);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_access_nimble_client_through_facade(): void
     {
         $client = NimbleFacade::client();
@@ -27,7 +28,7 @@ class FacadeTest extends TestCase
         $this->assertInstanceOf(NimbleClient::class, $client);
     }
 
-    /** @test */
+    #[Test]
     public function facade_returns_same_instance_on_multiple_calls(): void
     {
         $instance1 = NimbleFacade::getFacadeRoot();
@@ -36,7 +37,7 @@ class FacadeTest extends TestCase
         $this->assertSame($instance1, $instance2);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_base_url_through_facade(): void
     {
         $baseUrl = NimbleFacade::getBaseUrl();

@@ -7,11 +7,12 @@ namespace AlexHackney\LaraNimble\Tests\Unit\DTOs;
 use AlexHackney\LaraNimble\DTOs\StreamDto;
 use AlexHackney\LaraNimble\Enums\StreamProtocol;
 use AlexHackney\LaraNimble\Enums\StreamStatus;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class StreamDtoTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_can_be_created_from_array(): void
     {
         $data = [
@@ -30,7 +31,7 @@ class StreamDtoTest extends TestCase
         $this->assertEquals(StreamProtocol::RTMP, $dto->protocol);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_handle_optional_fields(): void
     {
         $data = [
@@ -50,7 +51,7 @@ class StreamDtoTest extends TestCase
         $this->assertEquals(42, $dto->viewers);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_be_converted_to_array(): void
     {
         $data = [
@@ -73,7 +74,7 @@ class StreamDtoTest extends TestCase
         $this->assertEquals('rtmp', $array['protocol']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_null_optional_fields(): void
     {
         $data = [
@@ -90,7 +91,7 @@ class StreamDtoTest extends TestCase
         $this->assertNull($dto->viewers);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_handle_different_protocols(): void
     {
         $protocols = ['rtmp', 'mpegts', 'srt', 'ndi', 'hls', 'rtsp'];
@@ -108,7 +109,7 @@ class StreamDtoTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_can_handle_different_statuses(): void
     {
         $statuses = ['active', 'inactive', 'error'];

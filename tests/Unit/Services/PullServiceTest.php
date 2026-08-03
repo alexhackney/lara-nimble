@@ -12,6 +12,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class PullServiceTest extends TestCase
@@ -32,7 +33,7 @@ class PullServiceTest extends TestCase
         return new PullService($nimbleClient);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_list_pull_configurations(): void
     {
         $mock = new MockHandler([
@@ -69,7 +70,7 @@ class PullServiceTest extends TestCase
         $this->assertEquals('pull-1', $pulls->first()->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_a_specific_pull_configuration(): void
     {
         $mock = new MockHandler([
@@ -92,7 +93,7 @@ class PullServiceTest extends TestCase
         $this->assertEquals('live', $pull->localApp);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_add_a_pull_configuration(): void
     {
         $mock = new MockHandler([
@@ -114,7 +115,7 @@ class PullServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_update_a_pull_configuration(): void
     {
         $mock = new MockHandler([
@@ -131,7 +132,7 @@ class PullServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_delete_a_pull_configuration(): void
     {
         $mock = new MockHandler([
@@ -147,7 +148,7 @@ class PullServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_delete_fails(): void
     {
         $mock = new MockHandler([
@@ -163,7 +164,7 @@ class PullServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_pull_status(): void
     {
         $mock = new MockHandler([

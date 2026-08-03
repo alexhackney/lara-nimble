@@ -8,10 +8,11 @@ use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\Nimble;
 use AlexHackney\LaraNimble\NimbleServiceProvider;
 use AlexHackney\LaraNimble\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class ServiceProviderTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_registers_the_service_provider(): void
     {
         $providers = $this->app->getLoadedProviders();
@@ -19,7 +20,7 @@ class ServiceProviderTest extends TestCase
         $this->assertArrayHasKey(NimbleServiceProvider::class, $providers);
     }
 
-    /** @test */
+    #[Test]
     public function it_registers_nimble_client_as_singleton(): void
     {
         $client1 = $this->app->make(NimbleClient::class);
@@ -29,7 +30,7 @@ class ServiceProviderTest extends TestCase
         $this->assertSame($client1, $client2);
     }
 
-    /** @test */
+    #[Test]
     public function it_registers_nimble_manager_as_singleton(): void
     {
         $nimble1 = $this->app->make(Nimble::class);
@@ -39,7 +40,7 @@ class ServiceProviderTest extends TestCase
         $this->assertSame($nimble1, $nimble2);
     }
 
-    /** @test */
+    #[Test]
     public function it_loads_configuration_from_config_file(): void
     {
         $this->assertEquals('localhost', config('nimble.host'));
@@ -47,7 +48,7 @@ class ServiceProviderTest extends TestCase
         $this->assertEquals('http', config('nimble.protocol'));
     }
 
-    /** @test */
+    #[Test]
     public function it_can_publish_configuration_file(): void
     {
         $configPath = config_path('nimble.php');
@@ -59,7 +60,7 @@ class ServiceProviderTest extends TestCase
         $this->assertInstanceOf(NimbleServiceProvider::class, $provider);
     }
 
-    /** @test */
+    #[Test]
     public function nimble_client_uses_config_values(): void
     {
         config(['nimble.host' => 'custom.example.com']);

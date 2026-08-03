@@ -12,6 +12,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class SessionServiceTest extends TestCase
@@ -32,7 +33,7 @@ class SessionServiceTest extends TestCase
         return new SessionService($nimbleClient);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_list_sessions(): void
     {
         $mock = new MockHandler([
@@ -65,7 +66,7 @@ class SessionServiceTest extends TestCase
         $this->assertEquals('session-1', $sessions->first()->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_a_specific_session(): void
     {
         $mock = new MockHandler([
@@ -86,7 +87,7 @@ class SessionServiceTest extends TestCase
         $this->assertEquals('stream-123', $session->streamId);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_terminate_a_session(): void
     {
         $mock = new MockHandler([
@@ -102,7 +103,7 @@ class SessionServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_terminate_fails(): void
     {
         $mock = new MockHandler([
@@ -118,7 +119,7 @@ class SessionServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_session_statistics(): void
     {
         $mock = new MockHandler([

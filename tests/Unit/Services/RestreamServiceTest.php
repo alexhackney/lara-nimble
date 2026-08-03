@@ -6,19 +6,30 @@ namespace AlexHackney\LaraNimble\Tests\Unit\Services;
 
 use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\DTOs\RestreamDto;
+use AlexHackney\LaraNimble\DTOs\RestreamStatsDto;
+use AlexHackney\LaraNimble\Exceptions\NimbleApiException;
 use AlexHackney\LaraNimble\Services\RestreamService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 
 class RestreamServiceTest extends TestCase
 {
+    /** @var array<int, array{request: RequestInterface}> */
+    private array $history = [];
+
     private function createService(MockHandler $mockHandler): RestreamService
     {
+        $this->history = [];
+
         $handlerStack = HandlerStack::create($mockHandler);
+        $handlerStack->push(Middleware::history($this->history));
         $httpClient = new Client(['handler' => $handlerStack]);
 
         $config = [
@@ -32,129 +43,249 @@ class RestreamServiceTest extends TestCase
         return new RestreamService($nimbleClient);
     }
 
-    /** @test */
-    public function it_can_list_restream_targets(): void
+    private function lastRequest(): RequestInterface
+    {
+        $this->assertNotEmpty($this->history);
+
+        return $this->history[count($this->history) - 1]['request'];
+    }
+
+    private function sampleRule(array $overrides = []): array
+    {
+        return array_merge([
+            'id' => 1,
+            'src_app' => 'live',
+            'src_stream' => 'stream1',
+            'dest_addr' => 'live-api-s.facebook.com',
+            'dest_port' => 443,
+            'dest_app' => 'rtmp',
+            'dest_stream' => 'fb-key-123',
+            'ssl' => true,
+        ], $overrides);
+    }
+
+    #[Test]
+    public function it_lists_republish_rules_from_the_native_endpoint(): void
     {
         $mock = new MockHandler([
             new Response(200, [], json_encode([
-                'restreams' => [
-                    [
-                        'id' => 'restream-1',
-                        'stream_id' => 'stream-123',
-                        'target_url' => 'rtmp://live.youtube.com/stream/key1',
-                        'protocol' => 'rtmp',
-                        'enabled' => true,
-                        'status' => 'active',
-                    ],
-                    [
-                        'id' => 'restream-2',
-                        'stream_id' => 'stream-123',
-                        'target_url' => 'rtmp://live.facebook.com/stream/key2',
-                        'protocol' => 'rtmp',
-                        'enabled' => false,
-                        'status' => 'inactive',
-                    ],
+                'status' => 'Ok',
+                'rules' => [
+                    $this->sampleRule(),
+                    $this->sampleRule([
+                        'id' => 2,
+                        'dest_addr' => 'a.rtmp.youtube.com',
+                        'dest_port' => 1935,
+                        'dest_app' => 'live2',
+                        'dest_stream' => 'yt-key',
+                        'ssl' => false,
+                    ]),
                 ],
             ])),
         ]);
 
         $service = $this->createService($mock);
-        $restreams = $service->list();
+        $rules = $service->list();
 
-        $this->assertInstanceOf(Collection::class, $restreams);
-        $this->assertCount(2, $restreams);
-        $this->assertContainsOnlyInstancesOf(RestreamDto::class, $restreams);
-        $this->assertEquals('restream-1', $restreams->first()->id);
+        $this->assertInstanceOf(Collection::class, $rules);
+        $this->assertCount(2, $rules);
+        $this->assertContainsOnlyInstancesOf(RestreamDto::class, $rules);
+        $this->assertSame(1, $rules->first()->id);
+        $this->assertSame('live-api-s.facebook.com', $rules->first()->destAddr);
+
+        $request = $this->lastRequest();
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/manage/rtmp/republish', $request->getUri()->getPath());
     }
 
-    /** @test */
-    public function it_can_get_a_specific_restream_target(): void
+    #[Test]
+    public function it_returns_an_empty_collection_when_there_are_no_rules(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok', 'rules' => []])),
+        ]);
+
+        $service = $this->createService($mock);
+
+        $this->assertTrue($service->list()->isEmpty());
+    }
+
+    #[Test]
+    public function it_gets_a_single_rule_by_id(): void
     {
         $mock = new MockHandler([
             new Response(200, [], json_encode([
-                'id' => 'restream-789',
-                'stream_id' => 'stream-123',
-                'target_url' => 'rtmp://live.youtube.com/stream/key789',
-                'protocol' => 'rtmp',
-                'enabled' => true,
-                'status' => 'active',
+                'status' => 'Ok',
+                'rules' => [$this->sampleRule(['id' => 42])],
             ])),
         ]);
 
         $service = $this->createService($mock);
-        $restream = $service->get('restream-789');
+        $rule = $service->get(42);
 
-        $this->assertInstanceOf(RestreamDto::class, $restream);
-        $this->assertEquals('restream-789', $restream->id);
-        $this->assertEquals('stream-123', $restream->streamId);
+        $this->assertInstanceOf(RestreamDto::class, $rule);
+        $this->assertSame(42, $rule->id);
+        $this->assertSame('live', $rule->srcApp);
+        $this->assertSame('stream1', $rule->srcStream);
+
+        $request = $this->lastRequest();
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/manage/rtmp/republish/42', $request->getUri()->getPath());
     }
 
-    /** @test */
-    public function it_can_add_a_restream_target(): void
+    #[Test]
+    public function it_gets_a_single_rule_when_nimble_returns_a_bare_rule_object(): void
     {
         $mock = new MockHandler([
             new Response(200, [], json_encode([
-                'success' => true,
-                'id' => 'restream-new',
+                'status' => 'Ok',
+                'rule' => $this->sampleRule(['id' => 7]),
             ])),
         ]);
 
         $service = $this->createService($mock);
-        $result = $service->add('stream-123', [
-            'target_url' => 'rtmp://live.youtube.com/stream/newkey',
-            'protocol' => 'rtmp',
-            'enabled' => true,
-        ]);
+        $rule = $service->get(7);
 
-        $this->assertTrue($result);
+        $this->assertInstanceOf(RestreamDto::class, $rule);
+        $this->assertSame(7, $rule->id);
     }
 
-    /** @test */
-    public function it_can_update_a_restream_target(): void
+    #[Test]
+    public function it_returns_null_when_a_rule_does_not_exist(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'NotFound', 'rules' => []])),
+        ]);
+
+        $service = $this->createService($mock);
+
+        $this->assertNull($service->get(999));
+    }
+
+    #[Test]
+    public function it_creates_a_rule_and_returns_it_with_the_assigned_id(): void
     {
         $mock = new MockHandler([
             new Response(200, [], json_encode([
-                'success' => true,
+                'status' => 'Ok',
+                'rule' => $this->sampleRule(['id' => 11]),
             ])),
         ]);
 
         $service = $this->createService($mock);
-        $result = $service->update('restream-789', [
-            'enabled' => false,
-        ]);
 
-        $this->assertTrue($result);
+        $created = $service->create(new RestreamDto(
+            srcApp: 'live',
+            srcStream: 'stream1',
+            destAddr: 'live-api-s.facebook.com',
+            destPort: 443,
+            destApp: 'rtmp',
+            destStream: 'fb-key-123',
+            ssl: true,
+        ));
+
+        $this->assertInstanceOf(RestreamDto::class, $created);
+        $this->assertSame(11, $created->id);
+
+        $request = $this->lastRequest();
+        $this->assertSame('POST', $request->getMethod());
+        $this->assertSame('/manage/rtmp/republish', $request->getUri()->getPath());
+
+        $body = json_decode((string) $request->getBody(), true);
+        $this->assertSame([
+            'src_app' => 'live',
+            'src_stream' => 'stream1',
+            'dest_addr' => 'live-api-s.facebook.com',
+            'dest_port' => 443,
+            'dest_app' => 'rtmp',
+            'dest_stream' => 'fb-key-123',
+            'ssl' => true,
+        ], $body);
     }
 
-    /** @test */
-    public function it_can_delete_a_restream_target(): void
+    #[Test]
+    public function it_throws_when_creation_does_not_return_a_rule(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Error'])),
+        ]);
+
+        $service = $this->createService($mock);
+
+        $this->expectException(NimbleApiException::class);
+
+        $service->create(new RestreamDto(
+            srcApp: 'live',
+            srcStream: 'stream1',
+            destAddr: 'example.com',
+            destPort: 1935,
+            destApp: 'live',
+            destStream: 'key',
+        ));
+    }
+
+    #[Test]
+    public function it_deletes_a_rule(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'Ok'])),
+        ]);
+
+        $service = $this->createService($mock);
+
+        $this->assertTrue($service->delete(42));
+
+        $request = $this->lastRequest();
+        $this->assertSame('DELETE', $request->getMethod());
+        $this->assertSame('/manage/rtmp/republish/42', $request->getUri()->getPath());
+    }
+
+    #[Test]
+    public function it_returns_false_when_deleting_a_missing_rule(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['status' => 'NotFound'])),
+        ]);
+
+        $service = $this->createService($mock);
+
+        $this->assertFalse($service->delete(999));
+    }
+
+    #[Test]
+    public function it_fetches_republish_stats(): void
     {
         $mock = new MockHandler([
             new Response(200, [], json_encode([
-                'success' => true,
-                'message' => 'Restream target deleted',
+                'status' => 'Ok',
+                'stats' => [
+                    array_merge($this->sampleRule(), [
+                        'state' => 'connected',
+                        'session_duration' => 120,
+                        'bandwidth' => 2500,
+                        'bytes_recv' => 1000,
+                        'bytes_sent' => 900,
+                        'retry_count' => 0,
+                    ]),
+                ],
             ])),
         ]);
 
         $service = $this->createService($mock);
-        $result = $service->delete('restream-789');
+        $stats = $service->stats();
 
-        $this->assertTrue($result);
-    }
+        $this->assertInstanceOf(Collection::class, $stats);
+        $this->assertCount(1, $stats);
+        $this->assertContainsOnlyInstancesOf(RestreamStatsDto::class, $stats);
 
-    /** @test */
-    public function it_returns_false_when_delete_fails(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], json_encode([
-                'success' => false,
-                'error' => 'Restream target not found',
-            ])),
-        ]);
+        $entry = $stats->first();
+        $this->assertSame('connected', $entry->state);
+        $this->assertSame(120, $entry->sessionDuration);
+        $this->assertSame(0, $entry->retryCount);
+        $this->assertSame('live-api-s.facebook.com', $entry->destAddr);
 
-        $service = $this->createService($mock);
-        $result = $service->delete('restream-789');
-
-        $this->assertFalse($result);
+        $request = $this->lastRequest();
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/manage/rtmp/republish/stats', $request->getUri()->getPath());
     }
 }

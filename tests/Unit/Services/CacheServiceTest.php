@@ -10,6 +10,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class CacheServiceTest extends TestCase
@@ -30,7 +31,7 @@ class CacheServiceTest extends TestCase
         return new CacheService($nimbleClient);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_clear_cache(): void
     {
         $mock = new MockHandler([
@@ -46,7 +47,7 @@ class CacheServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_clear_cache_with_type(): void
     {
         $mock = new MockHandler([
@@ -62,7 +63,7 @@ class CacheServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_clear_fails(): void
     {
         $mock = new MockHandler([
@@ -78,7 +79,7 @@ class CacheServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_cache_statistics(): void
     {
         $mock = new MockHandler([
@@ -99,7 +100,7 @@ class CacheServiceTest extends TestCase
         $this->assertEquals(0.85, $stats['hit_rate']);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_configure_cache_settings(): void
     {
         $mock = new MockHandler([
@@ -118,7 +119,7 @@ class CacheServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_configure_fails(): void
     {
         $mock = new MockHandler([
