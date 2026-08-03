@@ -398,7 +398,7 @@ class NimbleClient
             throw new InvalidConfigurationException('Protocol must be either http or https');
         }
 
-        if (isset($config['token']) && ! is_string($config['token']) && $config['token'] !== null) {
+        if (isset($config['token']) && ! is_string($config['token'])) {
             throw new InvalidConfigurationException('Token must be a string or null');
         }
     }

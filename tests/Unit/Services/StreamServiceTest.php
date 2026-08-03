@@ -13,6 +13,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Collection;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class StreamServiceTest extends TestCase
@@ -33,7 +34,7 @@ class StreamServiceTest extends TestCase
         return new StreamService($nimbleClient);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_list_streams(): void
     {
         $mock = new MockHandler([
@@ -65,7 +66,7 @@ class StreamServiceTest extends TestCase
         $this->assertEquals('live-stream', $streams->first()->name);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_a_specific_stream(): void
     {
         $mock = new MockHandler([
@@ -86,7 +87,7 @@ class StreamServiceTest extends TestCase
         $this->assertEquals('active', $stream->status->value);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_publish_a_stream(): void
     {
         $mock = new MockHandler([
@@ -102,7 +103,7 @@ class StreamServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_unpublish_a_stream(): void
     {
         $mock = new MockHandler([
@@ -117,7 +118,7 @@ class StreamServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_publish_fails(): void
     {
         $mock = new MockHandler([
@@ -133,7 +134,7 @@ class StreamServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_stream_statistics(): void
     {
         $mock = new MockHandler([
@@ -154,7 +155,7 @@ class StreamServiceTest extends TestCase
         $this->assertEquals(42, $stats['viewers']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_empty_collection_when_no_streams(): void
     {
         $mock = new MockHandler([
@@ -170,7 +171,7 @@ class StreamServiceTest extends TestCase
         $this->assertCount(0, $streams);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_live_status_for_specific_stream(): void
     {
         $mock = new MockHandler([
@@ -218,7 +219,7 @@ class StreamServiceTest extends TestCase
         $this->assertEquals(30.0, $stats->fps);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_null_when_stream_is_not_live(): void
     {
         $mock = new MockHandler([
@@ -238,7 +239,7 @@ class StreamServiceTest extends TestCase
         $this->assertNull($stats);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_all_live_streams(): void
     {
         $mock = new MockHandler([
@@ -287,7 +288,7 @@ class StreamServiceTest extends TestCase
         $this->assertEquals('ndi', $streams->get(2)->protocol);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_empty_collection_when_no_live_streams(): void
     {
         $mock = new MockHandler([

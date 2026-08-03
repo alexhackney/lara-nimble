@@ -6,10 +6,17 @@ namespace AlexHackney\LaraNimble\Services;
 
 use AlexHackney\LaraNimble\Client\NimbleClient;
 use AlexHackney\LaraNimble\DTOs\RestreamDto;
+use AlexHackney\LaraNimble\DTOs\RestreamStatsDto;
+use AlexHackney\LaraNimble\Exceptions\NimbleApiException;
 use Illuminate\Support\Collection;
 
 /**
- * Service for managing Nimble restream targets.
+ * Service for managing Nimble RTMP republishing rules.
+ *
+ * Uses the native API at /manage/rtmp/republish. Two caveats from the
+ * Nimble docs: only rules created through this API appear in list(), so
+ * rules made in WMSPanel are invisible here, and API-created rules are
+ * not persisted across a Nimble config reload or restart.
  */
 class RestreamService
 {
@@ -18,62 +25,82 @@ class RestreamService
     ) {}
 
     /**
-     * List all restream targets.
+     * List all republishing rules created through the native API.
      *
      * @return Collection<int, RestreamDto>
      */
     public function list(): Collection
     {
-        $response = $this->client->get('/manage/restream/targets');
+        $response = $this->client->get('/manage/rtmp/republish');
 
-        /** @var array<int, array<string, mixed>> $restreams */
-        $restreams = $response->get('restreams', []);
+        /** @var array<int, array<string, mixed>> $rules */
+        $rules = $response->get('rules', []);
 
-        return collect($restreams)->map(function (array $restreamData) {
-            return RestreamDto::fromArray($restreamData);
+        return collect($rules)->map(function (array $rule) {
+            return RestreamDto::fromArray($rule);
         });
     }
 
     /**
-     * Get details of a specific restream target.
+     * Get a specific republishing rule, or null when it does not exist.
      */
-    public function get(string $restreamId): RestreamDto
+    public function get(int|string $ruleId): ?RestreamDto
     {
-        $response = $this->client->get("/manage/restream/target/{$restreamId}");
+        $response = $this->client->get("/manage/rtmp/republish/{$ruleId}");
 
-        return RestreamDto::fromArray($response->data());
+        /** @var array<string, mixed>|null $rule */
+        $rule = $response->get('rule') ?? $response->get('rules.0');
+
+        return is_array($rule) ? RestreamDto::fromArray($rule) : null;
     }
 
     /**
-     * Add a new restream target.
+     * Create a new republishing rule and return it with its assigned id.
+     *
+     * @throws NimbleApiException when Nimble rejects the rule
      */
-    public function add(string $streamId, array $config): bool
+    public function create(RestreamDto $rule): RestreamDto
     {
-        $response = $this->client->post('/manage/restream/target', array_merge(
-            ['stream_id' => $streamId],
-            $config
-        ));
+        $response = $this->client->post('/manage/rtmp/republish', $rule->toCreatePayload());
 
-        return $response->get('success', false) === true;
+        /** @var array<string, mixed>|null $created */
+        $created = $response->get('rule');
+
+        if (! is_array($created)) {
+            throw new NimbleApiException(
+                'Nimble did not return the created republishing rule',
+                $response->statusCode(),
+                $response->data()
+            );
+        }
+
+        return RestreamDto::fromArray($created);
     }
 
     /**
-     * Update an existing restream target.
+     * Delete a republishing rule.
      */
-    public function update(string $restreamId, array $config): bool
+    public function delete(int|string $ruleId): bool
     {
-        $response = $this->client->put("/manage/restream/target/{$restreamId}", $config);
+        $response = $this->client->delete("/manage/rtmp/republish/{$ruleId}");
 
-        return $response->get('success', false) === true;
+        return strcasecmp((string) $response->get('status', ''), 'ok') === 0;
     }
 
     /**
-     * Delete a restream target.
+     * Get connection statistics for all republishing rules.
+     *
+     * @return Collection<int, RestreamStatsDto>
      */
-    public function delete(string $restreamId): bool
+    public function stats(): Collection
     {
-        $response = $this->client->delete("/manage/restream/target/{$restreamId}");
+        $response = $this->client->get('/manage/rtmp/republish/stats');
 
-        return $response->get('success', false) === true;
+        /** @var array<int, array<string, mixed>> $stats */
+        $stats = $response->get('stats', []);
+
+        return collect($stats)->map(function (array $entry) {
+            return RestreamStatsDto::fromArray($entry);
+        });
     }
 }

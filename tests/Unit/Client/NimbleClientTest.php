@@ -15,11 +15,12 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class NimbleClientTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_can_be_instantiated_with_valid_config(): void
     {
         $config = [
@@ -33,7 +34,7 @@ class NimbleClientTest extends TestCase
         $this->assertInstanceOf(NimbleClient::class, $client);
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_exception_when_host_is_missing(): void
     {
         $this->expectException(InvalidConfigurationException::class);
@@ -42,7 +43,7 @@ class NimbleClientTest extends TestCase
         new NimbleClient([]);
     }
 
-    /** @test */
+    #[Test]
     public function it_builds_correct_base_url(): void
     {
         $config = [
@@ -57,7 +58,7 @@ class NimbleClientTest extends TestCase
         $this->assertEquals('https://nimble.example.com:8082', $baseUrl);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_make_get_request(): void
     {
         $mock = new MockHandler([
@@ -79,7 +80,7 @@ class NimbleClientTest extends TestCase
         $this->assertEquals(['status' => 'online'], $response->data());
     }
 
-    /** @test */
+    #[Test]
     public function it_can_make_post_request(): void
     {
         $mock = new MockHandler([
@@ -101,7 +102,7 @@ class NimbleClientTest extends TestCase
         $this->assertEquals(['success' => true], $response->data());
     }
 
-    /** @test */
+    #[Test]
     public function it_can_make_delete_request(): void
     {
         $mock = new MockHandler([
@@ -123,7 +124,7 @@ class NimbleClientTest extends TestCase
         $this->assertEquals(['success' => true], $response->data());
     }
 
-    /** @test */
+    #[Test]
     public function it_adds_authentication_when_token_is_provided(): void
     {
         $mock = new MockHandler([
@@ -150,7 +151,7 @@ class NimbleClientTest extends TestCase
         $this->assertNotNull($lastRequest);
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_connection_exception_on_network_error(): void
     {
         $mock = new MockHandler([
@@ -173,7 +174,7 @@ class NimbleClientTest extends TestCase
         $client->get('/manage/status');
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_authentication_exception_on_401(): void
     {
         $mock = new MockHandler([
@@ -195,7 +196,7 @@ class NimbleClientTest extends TestCase
         $client->get('/manage/status');
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_api_exception_on_4xx_errors(): void
     {
         $mock = new MockHandler([
@@ -217,7 +218,7 @@ class NimbleClientTest extends TestCase
         $client->get('/manage/status');
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_api_exception_on_5xx_errors(): void
     {
         $mock = new MockHandler([

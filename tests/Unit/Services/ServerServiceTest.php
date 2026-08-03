@@ -11,6 +11,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class ServerServiceTest extends TestCase
@@ -31,7 +32,7 @@ class ServerServiceTest extends TestCase
         return new ServerService($nimbleClient);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_server_status(): void
     {
         $mock = new MockHandler([
@@ -56,7 +57,7 @@ class ServerServiceTest extends TestCase
         $this->assertEquals(42, $status->connections);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_reload_configuration(): void
     {
         $mock = new MockHandler([
@@ -72,7 +73,7 @@ class ServerServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_reload_fails(): void
     {
         $mock = new MockHandler([
@@ -88,7 +89,7 @@ class ServerServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_sync_with_wms_panel(): void
     {
         $mock = new MockHandler([
@@ -104,7 +105,7 @@ class ServerServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_false_when_sync_fails(): void
     {
         $mock = new MockHandler([

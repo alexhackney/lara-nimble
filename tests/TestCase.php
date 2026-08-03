@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AlexHackney\LaraNimble\Tests;
 
+use AlexHackney\LaraNimble\Facades\Nimble;
+use AlexHackney\LaraNimble\NimbleServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
@@ -11,14 +13,14 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
-            \AlexHackney\LaraNimble\NimbleServiceProvider::class,
+            NimbleServiceProvider::class,
         ];
     }
 
     protected function getPackageAliases($app): array
     {
         return [
-            'Nimble' => \AlexHackney\LaraNimble\Facades\Nimble::class,
+            'Nimble' => Nimble::class,
         ];
     }
 

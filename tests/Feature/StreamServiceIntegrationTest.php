@@ -5,21 +5,23 @@ declare(strict_types=1);
 namespace AlexHackney\LaraNimble\Tests\Feature;
 
 use AlexHackney\LaraNimble\Facades\Nimble as NimbleFacade;
+use AlexHackney\LaraNimble\Nimble;
 use AlexHackney\LaraNimble\Services\StreamService;
 use AlexHackney\LaraNimble\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class StreamServiceIntegrationTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_can_access_stream_service_through_nimble_manager(): void
     {
-        $nimble = $this->app->make(\AlexHackney\LaraNimble\Nimble::class);
+        $nimble = $this->app->make(Nimble::class);
         $streamService = $nimble->streams();
 
         $this->assertInstanceOf(StreamService::class, $streamService);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_access_stream_service_through_facade(): void
     {
         $streamService = NimbleFacade::streams();
@@ -27,7 +29,7 @@ class StreamServiceIntegrationTest extends TestCase
         $this->assertInstanceOf(StreamService::class, $streamService);
     }
 
-    /** @test */
+    #[Test]
     public function stream_service_has_access_to_configured_client(): void
     {
         $streamService = NimbleFacade::streams();

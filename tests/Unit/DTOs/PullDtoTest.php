@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace AlexHackney\LaraNimble\Tests\Unit\DTOs;
 
 use AlexHackney\LaraNimble\DTOs\PullDto;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class PullDtoTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_can_be_created_from_array(): void
     {
         $data = [
@@ -34,7 +35,7 @@ class PullDtoTest extends TestCase
         $this->assertEquals('active', $dto->status);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_handle_optional_fields(): void
     {
         $data = [
@@ -51,7 +52,7 @@ class PullDtoTest extends TestCase
         $this->assertNull($dto->status);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_be_converted_to_array(): void
     {
         $data = [

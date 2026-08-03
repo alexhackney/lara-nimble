@@ -10,11 +10,12 @@ use AlexHackney\LaraNimble\Exceptions\NimbleAuthenticationException;
 use AlexHackney\LaraNimble\Exceptions\NimbleConnectionException;
 use AlexHackney\LaraNimble\Exceptions\NimbleException;
 use AlexHackney\LaraNimble\Exceptions\StreamNotFoundException;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class ExceptionTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function nimble_exception_can_be_instantiated(): void
     {
         $exception = new NimbleException('Test error');
@@ -23,7 +24,7 @@ class ExceptionTest extends TestCase
         $this->assertEquals('Test error', $exception->getMessage());
     }
 
-    /** @test */
+    #[Test]
     public function nimble_connection_exception_extends_nimble_exception(): void
     {
         $exception = new NimbleConnectionException('Connection failed');
@@ -32,7 +33,7 @@ class ExceptionTest extends TestCase
         $this->assertEquals('Connection failed', $exception->getMessage());
     }
 
-    /** @test */
+    #[Test]
     public function nimble_authentication_exception_extends_nimble_exception(): void
     {
         $exception = new NimbleAuthenticationException('Auth failed');
@@ -41,7 +42,7 @@ class ExceptionTest extends TestCase
         $this->assertEquals('Auth failed', $exception->getMessage());
     }
 
-    /** @test */
+    #[Test]
     public function nimble_api_exception_extends_nimble_exception(): void
     {
         $exception = new NimbleApiException('API error', 500);
@@ -51,7 +52,7 @@ class ExceptionTest extends TestCase
         $this->assertEquals(500, $exception->getCode());
     }
 
-    /** @test */
+    #[Test]
     public function stream_not_found_exception_extends_nimble_exception(): void
     {
         $exception = new StreamNotFoundException('Stream not found');
@@ -60,7 +61,7 @@ class ExceptionTest extends TestCase
         $this->assertEquals('Stream not found', $exception->getMessage());
     }
 
-    /** @test */
+    #[Test]
     public function invalid_configuration_exception_extends_nimble_exception(): void
     {
         $exception = new InvalidConfigurationException('Invalid config');
@@ -69,7 +70,7 @@ class ExceptionTest extends TestCase
         $this->assertEquals('Invalid config', $exception->getMessage());
     }
 
-    /** @test */
+    #[Test]
     public function exceptions_can_have_previous_exception(): void
     {
         $previous = new \RuntimeException('Previous error');
@@ -78,7 +79,7 @@ class ExceptionTest extends TestCase
         $this->assertSame($previous, $exception->getPrevious());
     }
 
-    /** @test */
+    #[Test]
     public function exceptions_can_have_custom_codes(): void
     {
         $exception = new NimbleException('Error with code', 404);

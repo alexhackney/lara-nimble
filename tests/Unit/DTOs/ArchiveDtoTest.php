@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace AlexHackney\LaraNimble\Tests\Unit\DTOs;
 
 use AlexHackney\LaraNimble\DTOs\ArchiveDto;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class ArchiveDtoTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_can_be_created_from_array(): void
     {
         $data = [
@@ -33,7 +34,7 @@ class ArchiveDtoTest extends TestCase
         $this->assertEquals(3600, $dto->duration);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_handle_optional_fields(): void
     {
         $data = [
@@ -49,7 +50,7 @@ class ArchiveDtoTest extends TestCase
         $this->assertNull($dto->path);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_be_converted_to_array(): void
     {
         $data = [
