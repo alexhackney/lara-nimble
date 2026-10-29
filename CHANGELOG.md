@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-29
+
+### Changed
+- Widened `guzzlehttp/guzzle` to `^7.5 || ^8.0` so Laravel 13 apps can install
+  Guzzle 8 (Laravel 12 stays on Guzzle 7)
+- CI: bumped `actions/checkout` to v7, `actions/labeler` to v7 and
+  `codecov/codecov-action` to v7
+
 ## [1.0.0] - 2026-08-03
 
 Every service now maps 1:1 to endpoints documented in Nimble's native API
