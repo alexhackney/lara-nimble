@@ -1,44 +1,24 @@
 name: Release
 
+# Releases are cut on merge to main from the first versioned CHANGELOG heading.
+# If that version has no tag yet, tests run, then the tag and GitHub release are
+# created. Merges that don't add a new heading (e.g. Dependabot) release nothing.
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  test:
-    name: Run Tests Before Release
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 8.4
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-
-      - name: Install dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
-
-      - name: Run tests
-        run: vendor/bin/phpunit
-
-      - name: Run PHPStan
-        run: vendor/bin/phpstan analyse --memory-limit=1G
-
-      - name: Run Pint
-        run: vendor/bin/pint --test
-
   release:
-    name: Create GitHub Release
+    name: Create Release
     runs-on: ubuntu-latest
-    needs: test
 
     steps:
       - name: Checkout code
@@ -46,44 +26,64 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get tag name
-        id: tag
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Extract changelog for current version
-        id: changelog
+      - name: Read version from CHANGELOG
+        id: version
         run: |
-          VERSION="${{ steps.tag.outputs.version }}"
-          # Extract changelog section for this version
-          if [ -f CHANGELOG.md ]; then
-            # Try to extract the section for this version
-            CHANGELOG=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | sed '$ d')
-            if [ -z "$CHANGELOG" ]; then
-              # If no specific version section, use the unreleased section
-              CHANGELOG=$(sed -n '/## \[Unreleased\]/,/## \[/p' CHANGELOG.md | sed '$ d')
-            fi
-            # Save to file for multiline support
-            echo "$CHANGELOG" > changelog_extract.md
+          VERSION=$(grep -m1 -oP '^## \[\K[0-9]+\.[0-9]+\.[0-9]+(?=\])' CHANGELOG.md || true)
+          if [ -z "$VERSION" ]; then
+            echo "No versioned heading found in CHANGELOG.md; nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif git rev-parse -q --verify "refs/tags/v${VERSION}" > /dev/null; then
+            echo "v${VERSION} is already tagged; nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Release $VERSION" > changelog_extract.md
+            echo "Releasing v${VERSION}."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+      - name: Setup PHP
+        if: steps.version.outputs.release == 'true'
+        uses: shivammathur/setup-php@v2
         with:
-          name: Release ${{ steps.tag.outputs.version }}
-          body_path: changelog_extract.md
-          draft: false
-          prerelease: ${{ contains(steps.tag.outputs.version, '-') }}
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          php-version: 8.4
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
 
-      - name: Notify Packagist
+      - name: Install dependencies
+        if: steps.version.outputs.release == 'true'
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run tests
+        if: steps.version.outputs.release == 'true'
+        run: vendor/bin/phpunit
+
+      - name: Run PHPStan
+        if: steps.version.outputs.release == 'true'
+        run: vendor/bin/phpstan analyse --memory-limit=1G
+
+      - name: Run Pint
+        if: steps.version.outputs.release == 'true'
+        run: vendor/bin/pint --test
+
+      - name: Extract changelog for this version
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # Packagist auto-updates from GitHub tags, but we can trigger it manually for faster updates
-          if [ -n "${{ secrets.PACKAGIST_TOKEN }}" ]; then
-            curl -XPOST -H "Content-Type: application/json" \
-              "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
-              -d '{"repository":{"url":"https://github.com/alexhackney/lara-nimble"}}'
-          fi
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            /^## \[/ { found = 0 }
+            found
+          ' CHANGELOG.md > changelog_extract.md
+
+      - name: Create tag and GitHub release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v${VERSION}" \
+            --target "$GITHUB_SHA" \
+            --title "Release v${VERSION}" \
+            --notes-file changelog_extract.md \
+            --generate-notes
