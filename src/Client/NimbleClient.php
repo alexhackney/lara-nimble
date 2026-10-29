@@ -10,9 +10,9 @@ use AlexHackney\LaraNimble\Exceptions\NimbleAuthenticationException;
 use AlexHackney\LaraNimble\Exceptions\NimbleConnectionException;
 use AlexHackney\LaraNimble\Exceptions\NimbleTimeoutException;
 use GuzzleHttp\Client as GuzzleClient;
-use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\Log;
+use Psr\Http\Client\NetworkExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -164,7 +164,8 @@ class NimbleClient
                 $this->logResponse($wrappedResponse);
 
                 return $wrappedResponse;
-            } catch (ConnectException $e) {
+            } catch (NetworkExceptionInterface $e) {
+                // Guzzle 7 ConnectException and Guzzle 8 NetworkException (incl. timeouts before headers)
                 $lastException = new NimbleConnectionException(
                     "Failed to connect to Nimble server at {$this->baseUrl}: {$e->getMessage()}",
                     previous: $e
@@ -178,7 +179,7 @@ class NimbleClient
                     continue;
                 }
             } catch (RequestException $e) {
-                $response = $e->getResponse();
+                $response = $this->responseFrom($e);
 
                 if ($response === null) {
                     $lastException = new NimbleTimeoutException(
@@ -268,6 +269,17 @@ class NimbleClient
         $md5raw = md5($str2hash, true);
 
         return base64_encode($md5raw);
+    }
+
+    /**
+     * Get the response attached to a request exception, if any.
+     *
+     * Guzzle 8 moved getResponse() from RequestException to its ResponseException
+     * subclass, so probe for it to stay compatible with Guzzle 7 and 8.
+     */
+    private function responseFrom(RequestException $e): ?ResponseInterface
+    {
+        return method_exists($e, 'getResponse') ? $e->getResponse() : null;
     }
 
     /**

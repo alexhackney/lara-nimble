@@ -7,3 +7,10 @@ parameters:
     level: 8
     ignoreErrors:
         - identifier: missingType.iterableValue
+        # Guzzle 7 keeps getResponse() on RequestException and Guzzle 8 moves it to
+        # ResponseException; the probe is needed to support both, so it only
+        # narrows on one of them.
+        -
+            identifier: function.alreadyNarrowedType
+            path: src/Client/NimbleClient.php
+            reportUnmatched: false

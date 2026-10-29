@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Widened `guzzlehttp/guzzle` to `^7.5 || ^8.0` so Laravel 13 apps can install
   Guzzle 8 (Laravel 12 stays on Guzzle 7)
+- `NimbleClient` no longer calls `RequestException::getResponse()` directly
+  (removed in Guzzle 8) and catches `Psr\Http\Client\NetworkExceptionInterface`
+  for no-response network failures, so it behaves the same on Guzzle 7 and 8
 - CI: bumped `actions/checkout` to v7, `actions/labeler` to v7 and
   `codecov/codecov-action` to v7
 
