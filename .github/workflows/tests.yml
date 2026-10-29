@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload coverage to Codecov (PHP 8.4, Laravel 12 only)
         if: matrix.php == '8.4' && matrix.laravel == '^12.0'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
